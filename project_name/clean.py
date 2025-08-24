@@ -20,6 +20,7 @@ def _clean_one(
     reduce_repeat: bool = True,
     keep_newline: bool = False,
     remove_stopwords_opt: bool = False,
+    max_repeat: int = 2,
 ) -> str:
     t = text
     # Unicode normalize + strip control
@@ -37,7 +38,7 @@ def _clean_one(
         t = remove_digits(t)
     # Normalize repeated chars
     if reduce_repeat:
-        t = normalize_repeated(t, max_repeat=2)
+        t = normalize_repeated(t, max_repeat=max_repeat)
     # Whitespace normalization
     t = normalize_whitespace(t, keep_newline=keep_newline)
     # Optional: stopwords
@@ -54,6 +55,7 @@ def basic_clean(
     reduce_repeat: bool = True,
     keep_newline: bool = False,
     remove_stopwords: bool = False,
+    max_repeat: int = 2,
 ) -> StrOrList:
     """Bersihkan string atau iterable string dengan nilai default yang aman.
 
@@ -68,8 +70,18 @@ def basic_clean(
             reduce_repeat=reduce_repeat,
             keep_newline=keep_newline,
             remove_stopwords_opt=remove_stopwords,
+            max_repeat=max_repeat,
         )
-    # Assume iterable of strings
+    # Validate iterable of strings
+    try:
+        items = list(data)  
+    except TypeError:
+        raise TypeError("data harus berupa string atau iterable berisi string")
+
+    non_str_indices = [i for i, x in enumerate(items) if not isinstance(x, str)]
+    if non_str_indices:
+        raise TypeError(f"Semua elemen harus string. Indeks non-string: {non_str_indices}")
+
     return [
         _clean_one(
             x,
@@ -79,26 +91,7 @@ def basic_clean(
             reduce_repeat=reduce_repeat,
             keep_newline=keep_newline,
             remove_stopwords_opt=remove_stopwords,
+            max_repeat=max_repeat,
         )
-        for x in data
+        for x in items
     ]
-
-def clean_data(text):
-    """Legacy: hapus None/kosong dari list. Dipertahankan untuk kompatibilitas ke belakang."""
-    print("Starting data cleaning process...")
-    if not isinstance(text, list):
-        raise ValueError("Input harus berupa list.")
-    cleaned_data = [x for x in text if x not in (None, '', 'N/A')]
-    print(f"Cleaned data: {cleaned_data}")
-    return cleaned_data
-
-if __name__ == "__main__":
-    # Quick smoke test
-    sample = [
-        "<p>Halo&nbsp;dunia!</p>",
-        "Mantuuulll \u200b Sekali!!! 123",
-    ]
-    print(basic_clean(sample))
-def clean_text(text):
-    """ Fungsi pembersihan teks dasar. """
-    return text.lower()

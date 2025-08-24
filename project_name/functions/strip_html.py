@@ -2,7 +2,7 @@ import html
 import re
 
 TAG_RE = re.compile(r"<[^>]+>")
-
+#Althaf
 def strip_html(text: str) -> str:
     """Hapus tag HTML dan ubah entitas menjadi karakter biasa.
 

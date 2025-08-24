@@ -6,3 +6,4 @@ def to_lowercase(text: str) -> str:
     TODO: Implementasi fungsi ini oleh kontributor selanjutnya.
     """
     raise NotImplementedError("to_lowercase belum diimplementasikan.")
+#Rhendy
