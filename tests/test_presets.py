@@ -7,7 +7,7 @@ class TestPresets(unittest.TestCase):
         preset = get_ecommerce_preset()
         self.assertTrue(preset["remove_stopwords"])
         self.assertTrue(preset["remove_punctuation"])
-        self.assertTrue(preset["normalize_case"])
+        self.assertTrue(preset["lowercase"])
 
 if __name__ == '__main__':
     unittest.main()

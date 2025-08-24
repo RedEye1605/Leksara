@@ -1,9 +1,5 @@
 def to_lowercase(text: str) -> str:
-    """Ubah teks menjadi huruf kecil.
-
-    Catatan: Disarankan menggunakan casefold untuk dukungan Unicode yang lebih baik.
-    
-    TODO: Implementasi fungsi ini oleh kontributor selanjutnya.
-    """
-    raise NotImplementedError("to_lowercase belum diimplementasikan.")
-#Rhendy
+    """Ubah teks menjadi huruf kecil menggunakan casefold untuk dukungan Unicode."""
+    if not isinstance(text, str):
+        return text
+    return text.casefold()

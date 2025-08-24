@@ -1,6 +1,5 @@
 import re
 import string
-
 #Adit
 def remove_punctuation(text: str) -> str:
     """Hapus tanda baca (opsional).

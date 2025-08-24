@@ -1,5 +1,5 @@
 import re
-from typing import Iterable, Optional, Set, FrozenSet
+from typing import Iterable, Optional, FrozenSet
 
 DEFAULT_ID_STOPWORDS: FrozenSet[str] = frozenset({
     # Kumpulan minimal; dapat diperluas sesuai kebutuhan

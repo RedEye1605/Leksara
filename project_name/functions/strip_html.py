@@ -2,10 +2,19 @@ import html
 import re
 
 TAG_RE = re.compile(r"<[^>]+>")
-#Althaf
-def strip_html(text: str) -> str:
-    """Hapus tag HTML dan ubah entitas menjadi karakter biasa.
 
-    TODO: Implementasi fungsi ini oleh kontributor selanjutnya.
+def strip_html(text: str) -> str:
+    """Hapus tag HTML dan konversi entitas menjadi karakter biasa.
+
+    - Menghapus tag menggunakan regex sederhana.
+    - Mengonversi entitas HTML (&nbsp;, &amp;, &quot;, dsb.) menjadi karakter asli.
+    - Mengganti NBSP (\u00A0) menjadi spasi biasa agar mudah dinormalisasi.
     """
-    raise NotImplementedError("strip_html belum diimplementasikan.")
+    if not isinstance(text, str):
+        return text
+    # Hapus tag
+    no_tags = TAG_RE.sub("", text)
+    # Unescape entitas HTML
+    unescaped = html.unescape(no_tags)
+    # Ganti NBSP dengan spasi biasa
+    return unescaped.replace("\u00A0", " ")

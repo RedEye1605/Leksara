@@ -1,5 +1,5 @@
 import re
-#Rhendy
+#Althaf
 def normalize_whitespace(text: str, keep_newline: bool = False) -> str:
     """Menormalkan whitespace pada teks.
 
