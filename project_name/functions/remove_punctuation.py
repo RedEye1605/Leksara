@@ -1,9 +1,10 @@
 import re
 import string
 #Adit
+""" menghapus tanda baca pada teks"""
 def remove_punctuation(text: str) -> str:
-    """Hapus tanda baca (opsional).
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+    
+    return re.sub(r'[^\w\s]', '', text)
 
-    TODO: Implementasi fungsi ini oleh kontributor selanjutnya.
-    """
-    raise NotImplementedError("remove_punctuation belum diimplementasikan.")
