@@ -24,10 +24,3 @@ def normalize_repeated(text: str, max_repeat: int = 2) -> str:
         text = pattern.sub(lambda m: m.group(1) * max_repeat, text)
 
     return text
-
-# Pengujian heuristik
-if __name__ == "__main__":
-    print(normalize_repeated("mantaaapppp", max_repeat=1)) # "mantaaapp"
-    print(normalize_repeated("sukaaaaa bangeeett", max_repeat=1)) # "suka banget"
-    print(normalize_repeated("tinggii", max_repeat=1)) # "tinggi"
-    print(normalize_repeated("semaaangaaat", max_repeat=2)) # "semaangaat"
