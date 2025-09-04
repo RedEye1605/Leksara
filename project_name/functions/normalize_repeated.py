@@ -28,5 +28,6 @@ def normalize_repeated(text: str, max_repeat: int = 2) -> str:
 # Pengujian heuristik
 if __name__ == "__main__":
     print(normalize_repeated("mantaaapppp", max_repeat=1)) # "mantaaapp"
-    print(normalize_repeated("sukaaaaa bangeeett", max_repeat=1)) # "hii"
+    print(normalize_repeated("sukaaaaa bangeeett", max_repeat=1)) # "suka banget"
+    print(normalize_repeated("tinggii", max_repeat=1)) # "tinggi"
     print(normalize_repeated("semaaangaaat", max_repeat=2)) # "semaangaat"

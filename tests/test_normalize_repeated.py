@@ -26,6 +26,18 @@ class TestNormalizeRepeated(unittest.TestCase):
         # "mantaaappp" -> "mantap"
         self.assertEqual(normalize_repeated("mantaaappp", max_repeat=1), "mantap")
 
+    def test_normal_indonesian_word(self):
+        # "tinggiiiii" -> "tinggi"
+        self.assertEqual(normalize_repeated("tinggiiiii", max_repeat=1), "tinggi")
+    
+    def test_normal_indonesian_word_2(self):
+        # "assalamualaikumm" -> "assalamualaikum"
+        self.assertEqual(normalize_repeated("assalamualaikumm", max_repeat=1), "assalamualaikum")
+    
+    def test_normal_indonesian_word_3(self):
+        # "maaf" -> "maaf"
+        self.assertEqual(normalize_repeated("maaf", max_repeat=1), "maaf")
+
     def test_max_repeat_2_behavior(self):
         # "mantaaapppp" -> "mantaapp"
         self.assertEqual(normalize_repeated("mantaaapppp", max_repeat=2), "mantaapp")
