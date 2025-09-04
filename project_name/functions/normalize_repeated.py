@@ -11,15 +11,16 @@ def normalize_repeated(text: str, max_repeat: int = 2) -> str:
         raise ValueError("max_repeat must be >= 1")
 
     # Regex: (.)\1{n,} menangkap karakter yang diulang lebih dari n kali
-    # Hanya normalisasi jika pengulangan >= max_repeat+1
     if max_repeat == 1:
-        pattern = re.compile(r"(.)\1{" + str(max_repeat+1) + r",}")
-    else: 
-        pattern = re.compile(r"(.)\1{" + str(max_repeat) + r",}")
-    return pattern.sub(lambda m: m.group(1) * max_repeat, text)
+        # Khusus akhir kata: 2+ pengulangan -> 1
+        # (.)\1+ artinya ada minimal 1 pengulangan setelah char pertama -> total ≥2
+        text = re.sub(r"(.)\1+\b", r"\1", text)
 
-if __name__ == "__main__":
-    print(normalize_repeated("hello everrryoonneeeee", max_repeat=1))
-    # 👉 "pekerjaan mereka itu jelek sekali"  ✅
-    
-    print(normalize_repeated("hello everrryoonneeeee", max_repeat=2))
+        # Umum (bukan akhir kata): 3+ pengulangan -> 1
+        text = re.sub(r"(.)\1{2,}", r"\1", text)
+    else:
+        # Umum untuk max_repeat >= 2
+        pattern = re.compile(r"(.)\1{" + str(max_repeat) + r",}")
+        text = pattern.sub(lambda m: m.group(1) * max_repeat, text)
+
+    return text
