@@ -1,5 +1,5 @@
 import unittest
-from project_name.utils import unicode_normalize_nfkc, strip_control_chars
+from leksara.utils import unicode_normalize_nfkc, strip_control_chars
 
 
 class TestUtils(unittest.TestCase):

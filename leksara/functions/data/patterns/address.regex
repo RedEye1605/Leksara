@@ -1,0 +1,2 @@
+# Loose address hints
+(?:Jl\.?|Jalan|Gg\.?|Gang|RT\s?\d{1,2}/RW\s?\d{1,2}|No\.?\s?\d+).*

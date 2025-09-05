@@ -1,5 +1,5 @@
 import unittest
-from project_name.presets import get_ecommerce_preset
+from leksara.presets import get_ecommerce_preset
 
 class TestPresets(unittest.TestCase):
     def test_get_ecommerce_preset(self):

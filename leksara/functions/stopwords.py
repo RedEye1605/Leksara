@@ -1,5 +1,6 @@
 import re
-from typing import Iterable, Optional, FrozenSet
+from typing import Iterable, Optional, FrozenSet, Iterable as _Iterable
+from importlib.resources import files
 
 DEFAULT_ID_STOPWORDS: FrozenSet[str] = frozenset({
     # Kumpulan minimal; dapat diperluas sesuai kebutuhan
@@ -12,6 +13,33 @@ TOKEN_RE = re.compile(r"\w+|[^\w\s]", flags=re.UNICODE)
 
 def _normalize_token(token: str) -> str:
     return token.casefold()
+
+
+def load_id_stopwords(extra: Optional[_Iterable[str]] = None) -> FrozenSet[str]:
+    """Load a richer Indonesian stopwords set from packaged data and merge with defaults.
+
+    - Returns a frozenset of lowercased tokens.
+    - `extra` can be provided to extend the list at runtime.
+    """
+    try:
+        txt = files('leksara.functions.data').joinpath('stopwords_id.txt').read_text(encoding='utf-8')
+        file_words = [ln.strip() for ln in txt.splitlines() if ln.strip() and not ln.lstrip().startswith('#')]
+    except Exception:
+        file_words = []
+    base = set(DEFAULT_ID_STOPWORDS)
+    base.update(w.casefold() for w in file_words)
+    if extra:
+        base.update(w.casefold() for w in extra)
+    return frozenset(base)
+
+
+def remove_stopwords_id(text: str, whitelist: Optional[_Iterable[str]] = None, extra: Optional[_Iterable[str]] = None) -> str:
+    """Remove Indonesian stopwords using built-in list + optional extra words.
+
+    This is a thin convenience wrapper around `remove_stopwords` with `words=load_id_stopwords(...)`.
+    """
+    words = load_id_stopwords(extra=extra)
+    return remove_stopwords(text, words=words, whitelist=whitelist)
 
 def remove_stopwords(text: str, words: Optional[Iterable[str]] = None, whitelist: Optional[Iterable[str]] = None) -> str:
     """Hapus stopword dari string.

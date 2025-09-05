@@ -1,5 +1,5 @@
 import unittest
-from project_name.clean import basic_clean
+from leksara.clean import basic_clean
 
 try:
     import pandas as pd  # type: ignore

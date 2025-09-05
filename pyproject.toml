@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leksara"
+version = "0.0.1"
+description = "Library pemrosesan teks bahasa Indonesia untuk domain e-commerce"
+readme = "README.md"
+authors = [{name = "Rhendy Saragih"}]
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+  "pandas>=1.3",
+  "regex>=2022.1.18",
+  "emoji>=2.0.0",
+  "Sastrawi>=1.0.1",
+]
+
+[project.urls]
+Homepage = "https://example.com/leksara"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["leksara*"]
+
+[tool.setuptools.package-data]
+leksara = [
+  "data/*",
+  "data/patterns/*",
+  "functions/data/*",
+]
