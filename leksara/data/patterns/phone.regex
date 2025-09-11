@@ -1,2 +1,0 @@
-# Indonesian phone number patterns (rough)
-(?:\+?62|0)(?:\d[ -]?){8,13}

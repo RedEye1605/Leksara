@@ -1,0 +1,5 @@
+# Indonesian stopwords (one per line)
+dan
+di
+ke
+dari
