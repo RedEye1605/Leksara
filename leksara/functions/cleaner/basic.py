@@ -4,10 +4,16 @@ import html
 import re
 import os
 import string
-import emoji
+import json
+from pathlib import Path
 from functools import lru_cache
 
 TAG_RE = re.compile(r"<[^>]+>")
+
+current_file_path = Path(__file__).resolve()
+project_root = current_file_path.parent.parent.parent
+target_file_path = project_root / "leksara" / "resources" / "dictionary" / "emoji_dictionary.json"
+emoji_dictionary = json.load(open(target_file_path))
 
 def remove_tags(text: str) -> str:
     """Hapus tag HTML dan konversi entitas menjadi karakter biasa.
@@ -85,20 +91,21 @@ def remove_punctuation(text: str, exclude: str = None) -> str:
     pattern = f"[{re.escape(punctuation_to_remove)}]"
     return re.sub(pattern, '', text)
 
-def remove_emoji(text: str, emoji: str = None):
+def remove_emoji(text: str, mode: str = "remove"):
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+    pattern = re.compile("|".join(map(re.escape, emoji_dictionary.keys())))
 
-    if emoji == "remove":
-        return emoji.replace_emoji(text, replace='')
-    elif emoji == "mask":
-        return emoji.replace_emoji(text, replace='[EMOJI]')
-    else:
-        return text
-    pass
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
 
-def replace_emoji(text):
-    pass
+    if mode == "remove":
+        return pattern.sub('', text)
+    elif mode == "replace":
+        return pattern.sub(lambda m: f" {emoji_dictionary.get(m.group(0), '')} ", text)
+
+    return text
 
 
 @lru_cache(maxsize=1)

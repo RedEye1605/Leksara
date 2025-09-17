@@ -23,9 +23,15 @@ POPULAR_TLDS = ['com', 'id', 'co.id', 'go.id', 'ac.id', 'net', 'org', 'xyz', 'in
 tlds_pattern_part = "|".join(POPULAR_TLDS)
 URL_PATTERN_WITH_PATH = fr'\b[a-zA-Z0-9-]+\.(?:{tlds_pattern_part})\b(/[\w./?=&%#:-]*)?'
 
-def remove_phone(text: str) -> str:
+def replace_phone(text: str, mode: str = "remove") -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    replacement_token = '[PHONE_NUMBER]' if mode == "replace" else ''
 
     def validate_and_replace(match):
         potential_number = match.group(0)
@@ -38,42 +44,26 @@ def remove_phone(text: str) -> str:
             normalized_number = cleaned_number
 
         if normalized_number and 10 <= len(normalized_number) <= 13:
-            return ''
-
-        return potential_number
-
-    return re.sub(PHONE_PATTERN, validate_and_replace, text)
-
-def replace_phone(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-
-    def validate_and_replace(match):
-        potential_number = match.group(0)
-        cleaned_number = re.sub(r'[-\s]', '', potential_number)
-
-        normalized_number = None
-        if cleaned_number.startswith(('+62', '62')):
-            normalized_number = '0' + re.sub(r'^\+?62', '', cleaned_number)
-        elif cleaned_number.startswith('0'):
-            normalized_number = cleaned_number
-
-        if normalized_number and 10 <= len(normalized_number) <= 13:
-            return '[PHONE_NUMBER]'
+            return replacement_token
 
         return potential_number
 
     return re.sub(PHONE_PATTERN, validate_and_replace, text)
 
 
-def remove_address(text: str, **kwargs) -> str:
+def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+    
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+    
+    replacement_token = '[ADDRESS]' if mode == "replace" else ''
 
     if not re.search(ADDRESS_TRIGGER_PATTERN, text, flags=re.IGNORECASE):
         return text
-    
-    replacement_token = ''
+
     processed_text = text
 
     patterns_to_run = []
@@ -91,75 +81,45 @@ def remove_address(text: str, **kwargs) -> str:
 
     processed_text = re.sub(r'\s{2,}', ' ', processed_text).strip()
     return processed_text
-    
 
-def replace_address(text: str, **kwargs) -> str:
+
+def replace_email(text: str, mode: str = "remove")-> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
 
-    if not re.search(ADDRESS_TRIGGER_PATTERN, text, flags=re.IGNORECASE):
-        return text
-    
-    replacement_token = '[ADDRESS]'
-    processed_text = text
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
 
-    patterns_to_run = []
-    
-    if not kwargs:
-        patterns_to_run = ADDRESS_COMPONENT_PATTERNS.values()
-    
-    else:
-        for component, pattern in ADDRESS_COMPONENT_PATTERNS.items():
-            if kwargs.get(component, False):
-                patterns_to_run.append(pattern)
+    replacement_token = '[EMAIL]' if mode == "replace" else ''
 
-    for pattern in patterns_to_run:
-        processed_text = re.sub(pattern, replacement_token, processed_text, flags=re.IGNORECASE)
-        
-    processed_text = re.sub(r'\s{2,}', ' ', processed_text).strip()
-    return processed_text
+    return re.sub(EMAIL_PATTERN, replacement_token, text)
 
-def remove_email(text: str)-> str:
+
+def replace_id(text: str, mode: str = "remove") -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    return re.sub(EMAIL_PATTERN, '', text)
 
-def replace_email(text: str) -> str:
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    replacement_token = '[NIK]' if mode == "replace" else ''
+
+    return re.sub(NIK_PATTERN, replacement_token, text)
+
+def replace_url(text: str, mode: str = "remove") -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
 
-    return re.sub(EMAIL_PATTERN, '[EMAIL]', text)
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
 
-def remove_id(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    return re.sub(NIK_PATTERN, '', text)
+    replacement_token = '[URL]' if mode == "replace" else ''
 
-def replace_id(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    return re.sub(NIK_PATTERN, '[NIK]', text)
+    text = re.sub(URL_PATTERN, replacement_token, text, flags=re.IGNORECASE)
 
-def remove_url(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    text = re.sub(URL_PATTERN, '', text, flags=re.IGNORECASE)
-    
-    text = re.sub(URL_PATTERN_WITH_PATH, '', text, flags=re.IGNORECASE)
-    
-    return text
+    text = re.sub(URL_PATTERN_WITH_PATH, replacement_token, text, flags=re.IGNORECASE)
 
-def replace_url(text: str) -> str:
-    if not isinstance(text, str):
-        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    text = re.sub(URL_PATTERN, '[URL]', text, flags=re.IGNORECASE)
-    
-    text = re.sub(URL_PATTERN_WITH_PATH, '[URL]', text, flags=re.IGNORECASE)
-    
     return text
