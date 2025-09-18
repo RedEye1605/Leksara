@@ -23,14 +23,6 @@ except Exception as e:
     print(f"Gagal memuat file konfigurasi: {e}")
     emoji_dictionary = {}
 
-try:
-    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "emoji_dictionary.json"
-    with open(config_path, 'r', encoding='utf-8') as f:
-        PII_CONFIG = json.load(f)
-except Exception as e:
-    print(f"KRITIS: Gagal memuat file konfigurasi pii_patterns.json: {e}")
-    PII_CONFIG = {}
-
 def remove_tags(text: str) -> str:
     """Hapus tag HTML dan konversi entitas menjadi karakter biasa.
 
