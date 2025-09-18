@@ -10,10 +10,26 @@ from functools import lru_cache
 
 TAG_RE = re.compile(r"<[^>]+>")
 
-current_file_path = Path(__file__).resolve()
-project_root = current_file_path.parent.parent.parent
-target_file_path = project_root / "leksara" / "resources" / "dictionary" / "emoji_dictionary.json"
-emoji_dictionary = json.load(open(target_file_path))
+URL_PATTERN = r'((?:https?|ftp)://|www\.)[\w.-]+(/[\w./?=&%#:-]*)?'
+POPULAR_TLDS = ['com', 'id', 'co.id', 'go.id', 'ac.id', 'net', 'org', 'xyz', 'info', 'io']
+tlds_pattern_part = "|".join(POPULAR_TLDS)
+URL_PATTERN_WITH_PATH = fr'\b[a-zA-Z0-9-]+\.(?:{tlds_pattern_part})\b(/[\w./?=&%#:-]*)?'
+
+try:
+    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "emoji_dictionary.json"
+    with open(config_path, 'r', encoding='utf-8') as f:
+        emoji_dictionary = json.load(f)
+except Exception as e:
+    print(f"Gagal memuat file konfigurasi: {e}")
+    emoji_dictionary = {}
+
+try:
+    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "emoji_dictionary.json"
+    with open(config_path, 'r', encoding='utf-8') as f:
+        PII_CONFIG = json.load(f)
+except Exception as e:
+    print(f"KRITIS: Gagal memuat file konfigurasi pii_patterns.json: {e}")
+    PII_CONFIG = {}
 
 def remove_tags(text: str) -> str:
     """Hapus tag HTML dan konversi entitas menjadi karakter biasa.
@@ -90,6 +106,23 @@ def remove_punctuation(text: str, exclude: str = None) -> str:
 
     pattern = f"[{re.escape(punctuation_to_remove)}]"
     return re.sub(pattern, '', text)
+
+
+def replace_url(text: str, mode: str = "remove") -> str:
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    replacement_token = '[URL]' if mode == "replace" else ''
+
+    text = re.sub(URL_PATTERN, replacement_token, text, flags=re.IGNORECASE)
+
+    text = re.sub(URL_PATTERN_WITH_PATH, replacement_token, text, flags=re.IGNORECASE)
+
+    return text
 
 def remove_emoji(text: str, mode: str = "remove"):
     if not isinstance(text, str):
