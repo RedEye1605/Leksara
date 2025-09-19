@@ -3,6 +3,8 @@
 import html
 import re
 import os
+import string
+import emoji
 from functools import lru_cache
 
 TAG_RE = re.compile(r"<[^>]+>")
@@ -66,13 +68,33 @@ def remove_digits(text: str) -> str:
     
     return re.sub(r'\d+', '', text)
 
-def remove_punctuation(text: str) -> str:
+def remove_punctuation(text: str, exclude: str = None) -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
-    
-    return re.sub(r'[^\w\s]', '', text)
 
-def remove_emoji(text):
+    if exclude and not isinstance(exclude, str):
+        raise TypeError(f"Parameter 'exclude' harus berupa string, tetapi menerima tipe {type(exclude).__name__}")
+
+    ASCII_PUNCTUATION = string.punctuation
+    UNICODE_PUNCTUATION = "“”‘’—…"
+    punctuation_to_remove = ASCII_PUNCTUATION + UNICODE_PUNCTUATION
+
+    if exclude:
+        punctuation_to_remove = ''.join([p for p in punctuation_to_remove if p not in exclude])
+
+    pattern = f"[{re.escape(punctuation_to_remove)}]"
+    return re.sub(pattern, '', text)
+
+def remove_emoji(text: str, emoji: str = None):
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    if emoji == "remove":
+        return emoji.replace_emoji(text, replace='')
+    elif emoji == "mask":
+        return emoji.replace_emoji(text, replace='[EMOJI]')
+    else:
+        return text
     pass
 
 def replace_emoji(text):
