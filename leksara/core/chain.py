@@ -3,7 +3,7 @@
 Fitur utama:
 1. Eksekusi berurutan: patterns -> functions.
 2. Setiap step boleh berupa callable langsung atau tuple (callable, {kwargs}).
-3. Bisa dipakai fungsional (``run_pipeline`` / ``Leksara``) atau OOP (``ReviewChain``).
+3. Bisa dipakai fungsional (``run_pipeline`` / ``leksara``) atau OOP (``ReviewChain``).
 4. Opsi benchmark=True mengembalikan metrik waktu per step & total.
 
 Contoh cepat:
@@ -143,7 +143,7 @@ def run_pipeline(
     *,
     benchmark: bool = False,
 ):
-    return Leksara(data, pipeline=pipeline, benchmark=benchmark)
+    return leksara(data, pipeline=pipeline, benchmark=benchmark)
 
 
 # -------------------------- OOP API ----------------------------
