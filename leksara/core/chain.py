@@ -29,6 +29,9 @@ try:
 except Exception:  # pragma: no cover
     pd = None  # type: ignore
 
+# tambahkan import whitelist masker
+from ..utils.whitelist import mask_whitelist, unmask_whitelist
+
 TextFn = Callable[[str], str]
 Step = Union[TextFn, Tuple[TextFn, Dict[str, Any]]]
 
@@ -97,7 +100,12 @@ def leksara(
 
     patterns = _normalize_steps(pipeline.get("patterns", []))
     functions = _normalize_steps(pipeline.get("functions", []))
-    steps_all = [*patterns, *functions]
+
+    # Lindungi token whitelist: jalankan setelah patterns, sebelum functions
+    steps_all = [*patterns]
+    if functions:
+        steps_all += [mask_whitelist, *functions, unmask_whitelist]
+
     fn = _compose(steps_all)
 
     # timing agregat per step
