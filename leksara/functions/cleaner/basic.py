@@ -4,10 +4,24 @@ import html
 import re
 import os
 import string
-import emoji
+import json
+from pathlib import Path
 from functools import lru_cache
 
 TAG_RE = re.compile(r"<[^>]+>")
+
+URL_PATTERN = r'((?:https?|ftp)://|www\.)[\w.-]+(/[\w./?=&%#:-]*)?'
+POPULAR_TLDS = ['com', 'id', 'co.id', 'go.id', 'ac.id', 'net', 'org', 'xyz', 'info', 'io']
+tlds_pattern_part = "|".join(POPULAR_TLDS)
+URL_PATTERN_WITH_PATH = fr'\b[a-zA-Z0-9-]+\.(?:{tlds_pattern_part})\b(/[\w./?=&%#:-]*)?'
+
+try:
+    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "emoji_dictionary.json"
+    with open(config_path, 'r', encoding='utf-8') as f:
+        emoji_dictionary = json.load(f)
+except Exception as e:
+    print(f"Gagal memuat file konfigurasi: {e}")
+    emoji_dictionary = {}
 
 def remove_tags(text: str) -> str:
     """Hapus tag HTML dan konversi entitas menjadi karakter biasa.
@@ -81,20 +95,38 @@ def remove_punctuation(text: str, exclude: str = None) -> str:
     pattern = f"[{re.escape(punctuation_to_remove)}]"
     return re.sub(pattern, '', text)
 
-def remove_emoji(text: str, emoji: str = None):
+
+def replace_url(text: str, mode: str = "remove") -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
 
-    if emoji == "remove":
-        return emoji.replace_emoji(text, replace='')
-    elif emoji == "mask":
-        return emoji.replace_emoji(text, replace='[EMOJI]')
-    else:
-        return text
-    pass
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
 
-def replace_emoji(text):
-    pass
+    replacement_token = '[URL]' if mode == "replace" else ''
+
+    text = re.sub(URL_PATTERN, replacement_token, text, flags=re.IGNORECASE)
+
+    text = re.sub(URL_PATTERN_WITH_PATH, replacement_token, text, flags=re.IGNORECASE)
+
+    return text
+
+def remove_emoji(text: str, mode: str = "remove"):
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+    pattern = re.compile("|".join(map(re.escape, emoji_dictionary.keys())))
+
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    if mode == "remove":
+        return pattern.sub('', text)
+    elif mode == "replace":
+        return pattern.sub(lambda m: f" {emoji_dictionary.get(m.group(0), '')} ", text)
+
+    return text
 
 
 @lru_cache(maxsize=1)
