@@ -34,7 +34,6 @@ dependencies = [
   "regex>=2022.1.18",
   "emoji>=2.0.0",
   "Sastrawi>=1.0.1",
-  "nltk>=3.8.1",
 ]
 
 [project.optional-dependencies]

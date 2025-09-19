@@ -1,6 +1,8 @@
 """PII cleaning: remove/replace phone, address, email, id."""
-
+import os
 import re
+import json
+from pathlib import Path
 
 ADDRESS_COMPONENT_PATTERNS = {
     "street": r'\b(?:Jl\.?|Jalan|Gg\.?|Gang)\s+[A-Z0-9][A-Za-z0-9 ./-]*',
@@ -33,6 +35,12 @@ def replace_phone(text: str, mode: str = "remove") -> str:
 
     replacement_token = '[PHONE_NUMBER]' if mode == "replace" else ''
 
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    replacement_token = '[PHONE_NUMBER]' if mode == "replace" else ''
+
     def validate_and_replace(match):
         potential_number = match.group(0)
         cleaned_number = re.sub(r'[-\s]', '', potential_number)
@@ -47,7 +55,8 @@ def replace_phone(text: str, mode: str = "remove") -> str:
             return replacement_token
 
         return potential_number
-
+    
+    PHONE_PATTERN = phone_config.get("pattern", "")
     return re.sub(PHONE_PATTERN, validate_and_replace, text)
 
 
@@ -66,19 +75,11 @@ def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
 
     processed_text = text
 
-    patterns_to_run = []
-    
-    if not kwargs:
-        patterns_to_run = ADDRESS_COMPONENT_PATTERNS.values()
-    
-    else:
-        for component, pattern in ADDRESS_COMPONENT_PATTERNS.items():
-            if kwargs.get(component, False):
-                patterns_to_run.append(pattern)
+    replacement_token = '[ADDRESS]' if mode == "replace" else ''
 
-    for pattern in patterns_to_run:
-        processed_text = re.sub(pattern, replacement_token, processed_text, flags=re.IGNORECASE)
-
+    trigger_config = address_config.get("trigger_pattern", {})
+    trigger_pattern = trigger_config.get("pattern", "")
+    address_components = address_config.get("components", {})
     processed_text = re.sub(r'\s{2,}', ' ', processed_text).strip()
     return processed_text
 

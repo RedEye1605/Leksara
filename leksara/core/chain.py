@@ -3,7 +3,7 @@
 Fitur utama:
 1. Eksekusi berurutan: patterns -> functions.
 2. Setiap step boleh berupa callable langsung atau tuple (callable, {kwargs}).
-3. Bisa dipakai fungsional (``run_pipeline`` / ``Leksara``) atau OOP (``ReviewChain``).
+3. Bisa dipakai fungsional (``run_pipeline`` / ``leksara``) atau OOP (``ReviewChain``).
 4. Opsi benchmark=True mengembalikan metrik waktu per step & total.
 
 Contoh cepat:
@@ -28,6 +28,9 @@ try:
     import pandas as pd  # type: ignore
 except Exception:  # pragma: no cover
     pd = None  # type: ignore
+
+# tambahkan import whitelist masker
+from ..utils.whitelist import mask_whitelist, unmask_whitelist
 
 TextFn = Callable[[str], str]
 Step = Union[TextFn, Tuple[TextFn, Dict[str, Any]]]
@@ -97,7 +100,12 @@ def leksara(
 
     patterns = _normalize_steps(pipeline.get("patterns", []))
     functions = _normalize_steps(pipeline.get("functions", []))
-    steps_all = [*patterns, *functions]
+
+    # Lindungi token whitelist: jalankan setelah patterns, sebelum functions
+    steps_all = [*patterns]
+    if functions:
+        steps_all += [mask_whitelist, *functions, unmask_whitelist]
+
     fn = _compose(steps_all)
 
     # timing agregat per step
@@ -143,7 +151,7 @@ def run_pipeline(
     *,
     benchmark: bool = False,
 ):
-    return Leksara(data, pipeline=pipeline, benchmark=benchmark)
+    return leksara(data, pipeline=pipeline, benchmark=benchmark)
 
 
 # -------------------------- OOP API ----------------------------

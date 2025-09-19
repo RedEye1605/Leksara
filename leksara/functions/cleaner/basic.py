@@ -47,24 +47,20 @@ def remove_stopwords(text):
 
     stopwords_all = _load_id_stopwords()
 
-    # Tokenisasi non-destruktif: pisahkan kata, spasi, dan tanda baca agar bisa direkonstruksi apa adanya
-    tokens = re.findall(r"\w+|[^\w\s]+|\s+", text, flags=re.UNICODE)
+    tokens = re.findall(r"\w+|\W+", text, flags=re.UNICODE)
     kept = []
     for tok in tokens:
-        # Hanya evaluasi kata (\w+). Spasi dan tanda baca dipertahankan.
-        if tok.strip() and re.fullmatch(r"\w+", tok, flags=re.UNICODE):
+        if re.fullmatch(r"\w+", tok, flags=re.UNICODE):
             if tok.casefold() in stopwords_all:
-                continue  # drop stopword
+                continue
         kept.append(tok)
 
-    # Gabungkan kembali tanpa mengubah struktur spasi/tanda baca
     return "".join(kept)
 
 def remove_whitespace(text):
     """Normalisasi whitespace: trim dan kompres spasi berlebih menjadi satu spasi."""
     if not isinstance(text, str):
         return text
-    # Ganti semua whitespace (termasuk tab/newline) berturut menjadi satu spasi, lalu trim
     return re.sub(r"\s+", " ", text).strip()
 
 def remove_digits(text: str) -> str:
@@ -107,39 +103,24 @@ def remove_emoji(text: str, mode: str = "remove"):
 
     return text
 
-
 @lru_cache(maxsize=1)
 def _load_id_stopwords():
-    """Muat stopwords Bahasa Indonesia dari NLTK dan file lokal.
+    """Muat stopwords Bahasa Indonesia dari file lokal: leksara/resources/stopwords/id.txt.
 
-    Mengembalikan set berisi seluruh stopword dalam bentuk casefolded.
-    Jika resource NLTK belum terunduh, akan diunduh otomatis (sekali saja).
+    Mengembalikan set berisi stopword dalam bentuk casefolded.
+    Jika file tidak ditemukan, mengembalikan set kosong.
     """
     stopwords_local = set()
-
-    # Path file lokal: leksara/resources/stopwords/id.txt
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    resource_path = os.path.join(base_dir, "resources", "stopwords", "id.txt")
-    if os.path.exists(resource_path):
-        with open(resource_path, encoding="utf-8") as f:
-            for line in f:
-                w = line.strip()
-                if w and not w.startswith("#"):
-                    stopwords_local.add(w.casefold())
-
-    # NLTK Indonesian stopwords
-    stopwords_nltk = set()
     try:
-        from nltk.corpus import stopwords as nltk_stopwords  # type: ignore
-        try:
-            stopwords_nltk = set(w.casefold() for w in nltk_stopwords.words("indonesian"))
-        except LookupError:
-            import nltk  # type: ignore
-            nltk.download("stopwords", quiet=True)
-            stopwords_nltk = set(w.casefold() for w in nltk_stopwords.words("indonesian"))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        resource_path = os.path.join(base_dir, "resources", "stopwords", "id.txt")
+        if os.path.exists(resource_path):
+            with open(resource_path, encoding="utf-8") as f:
+                for line in f:
+                    w = line.strip()
+                    if w and not w.startswith("#"):
+                        stopwords_local.add(w.casefold())
     except Exception:
-        # Jika NLTK tidak terpasang/tersedia, tetap lanjut dengan daftar lokal saja
-        stopwords_nltk = set()
+        return set()
 
-    # Gabungkan, pastikan bentuk casefolded untuk robust Unicode
-    return stopwords_nltk | stopwords_local
+    return stopwords_local
