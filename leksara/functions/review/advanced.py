@@ -40,6 +40,13 @@ def normalize_slangs(text):
 def expand_contraction(text):
     pass
 
+# Deteksi placeholder whitelist (Private Use Area) agar tidak di-stem
+def _is_masked_whitelist_token(token: str) -> bool:
+    return any(0xE000 <= ord(ch) <= 0xF8FF for ch in token)
+
+def _is_bracket_token(token: str) -> bool:
+    return len(token) >= 2 and token.startswith("[") and token.endswith("]")
+
 def word_normalization(
     text: str,
     *,
@@ -70,10 +77,17 @@ def word_normalization(
     if method == "stem":
         if mode == "keep":
             for w in words:
-                out.append(w if w.lower() in word_set else _STEMMER.stem(w))
+                # Lindungi placeholder whitelist dan token bracket
+                if _is_masked_whitelist_token(w) or _is_bracket_token(w):
+                    out.append(w)
+                else:
+                    out.append(w if w.lower() in word_set else _STEMMER.stem(w))
         elif mode == "only":
             for w in words:
-                out.append(_STEMMER.stem(w) if w.lower() in word_set else w)
+                if _is_masked_whitelist_token(w) or _is_bracket_token(w):
+                    out.append(w)
+                else:
+                    out.append(_STEMMER.stem(w) if w.lower() in word_set else w)
         else:
             raise ValueError("mode harus 'keep' atau 'only'")
     else:

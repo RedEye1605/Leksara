@@ -6,6 +6,6 @@ __all__ = [
     "remove_whitespace",
     "remove_punctuation",
     "remove_digits",
-    "remove_emoji",
-    "replace_emoji",
+    "replace_url",
+    "remove_emoji"
 ]
