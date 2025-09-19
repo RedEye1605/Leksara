@@ -105,22 +105,10 @@ def leksara(
     patterns = _normalize_steps(pipeline.get("patterns", []))
     functions = _normalize_steps(pipeline.get("functions", []))
 
-    # Masking whitelist sebelum pipeline
-    def mask_data(data):
-        return [mask_whitelist(text) for text in data]
-
-    # Unmask whitelist setelah pipeline
-    def unmask_data(data):
-        return [unmask_whitelist(text) for text in data]
-
-    # Lindungi token whitelist: jalankan setelah patterns, sebelum functions
+    # Susun urutan langkah. Proteksi whitelist hanya jika ada functions.
     steps_all = [*patterns]
     if functions:
-        steps_all += [mask_whitelist, *functions]  # Menambahkan mask_whitelist sebelum fungsi
-    steps_all += [unmask_whitelist]  # Menambahkan unmask_whitelist di bagian akhir
-
-    # Membuat callable untuk langkah-langkah pipeline
-    fn = _compose(steps_all)
+        steps_all += [mask_whitelist, *functions, unmask_whitelist]
 
     # Timing agregat per step
     timings_map: Dict[str, float] = {}
@@ -138,20 +126,11 @@ def leksara(
                 timings_map[name] = timings_map.get(name, 0.0) + dt
         return y
 
-    def _apply_one(v: Any) -> Any:  # type: ignore[valid-type]
-        return _run_steps_with_timing(v) if isinstance(v, str) else v
-
-    # Masking data sebelum pipeline
-    data = mask_data(data)
-
-    # Mendukung iterable biasa tanpa pandas
+    # Mendukung iterable biasa dan pandas Series
     if pd is not None and isinstance(data, pd.Series):
-        out = data.apply(_apply_one)
+        out = data.apply(lambda v: _run_steps_with_timing(v) if isinstance(v, str) else v)
     else:
-        out = [_apply_one(v) for v in data]
-
-    # Unmask whitelist setelah pipeline selesai
-    out = unmask_data(out)
+        out = [_run_steps_with_timing(v) if isinstance(v, str) else v for v in data]
 
     if benchmark:
         total = sum(timings_map.values())
