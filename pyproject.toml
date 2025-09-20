@@ -4,8 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "leksara"
-# Versi diambil dinamis dari leksara/version.py -> __version__
-dynamic = ["version"]
+version = "0.0.0"
 description = "Library pemrosesan teks Bahasa Indonesia untuk domain e-commerce (cleaning, PII masking, review mining, pipeline)."
 readme = {file = "README.md", content-type = "text/markdown"}
 authors = [{name = "Rhendy Saragih"}]
@@ -76,9 +75,6 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = [""]
 include = ["leksara*"]
-
-[tool.setuptools.dynamic]
-version = {attr = "leksara.version.__version__"}
 
 [tool.setuptools.package-data]
 leksara = [
