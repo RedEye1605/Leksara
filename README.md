@@ -1,7 +1,7 @@
 # Leksara
 
 ## Description
-**Leksara** is a Python toolkit designed to streamline the preprocessing and cleaning of raw text data for Data Scientists and Machine Learning Engineers. It focuses on handling messy and noisy text data from various domains such as e-commerce, social media, and medical documents. The tool helps clean text by removing punctuation, stopwords, contractions, and other irrelevant content, allowing for efficient data analysis and machine learning model preparation.
+**Leksara** is a Python toolkit designed to streamline the preprocessing and cleaning of Indonesian text data for Data Scientists and Machine Learning Engineers. It focuses on handling messy and noisy Indonesian text from various domains such as e-commerce reviews, social media posts, and chat conversations. The tool helps clean text by handling Indonesian-specific challenges like slang words, regional expressions, informal abbreviations, and mixed language content, while also providing standard cleaning features like punctuation and stopword removal. This makes it an essential tool for Indonesian text analysis and machine learning model preparation.
 
 ## Key Features
 - **Basic Cleaning Pipeline**: A straightforward pipeline to clean raw text data by handling common tasks like punctuation removal, casing normalization, and stopword filtering.
@@ -80,89 +80,47 @@ print(df[['chat_id', 'safe_message']])
 Below is the recommended folder structure for organizing the project:
 ```
 [Leksara]/
-├── pyproject.toml                  # packaging & deps
-├── setup.py                        # setup (legacy)
-├── requirements.txt                # runtime deps
+├── pyproject.toml                  # packaging & deps (nltk, dll)
+├── requirements.txt                # runtime deps (nltk, pandas, dll)
 ├── README.md                       # overview & usage
-├── REPOSITORY_GUIDELINES.md
-├── LICENSE
-├── .gitignore
-├── data/                           # (opsional) data non-package
-│   ├── raw/
-│   ├── processed/
-│   └── external/
-├── docs/
-│   ├── index.md
-│   ├── usage.md
-│   ├── presets.md
-│   └── benchmarks.md
-├── leksara/                        # package utama (huruf kecil)
+├── leksara/                        # package utama
 │   ├── __init__.py                 # public API surface
-│   ├── clean.py                    # basic_clean orchestrator
-│   ├── presets.py                  # PRESETS, get_preset(), apply_preset()
-│   ├── utils.py                    # helper legacy (unicode normalize, control-chars)
-│   ├── cleaning.py                 # remove_tags, case_normal, remove_whitespace (+emoji fallback)
-│   ├── miner.py                    # rating, elongation, acronyms, slang, contraction, normalize_word
-│   ├── pii.py                      # remove/replace phone|email|address|id
-│   ├── pipeline.py                 # shim: exports PipelineConfig, ReviewChain
-│   ├── cartboard/
+│   ├── version.py                  # versi paket
+│   ├── core/
+│   │   ├── chain.py                # pipeline/CLI entry (sesuai pyproject scripts)
+│   │   ├── logging.py              # util logging/benchmark
+│   │   └── presets.py              # preset pipeline
+│   ├── frames/
+│   │   └── cartboard.py            # helpers untuk data frame
+│   ├── functions/                  # modul granular
 │   │   ├── __init__.py
-│   │   ├── frame.py                # build_frame(), REQUIRED_COLUMNS
-│   │   └── flags.py                # heuristik flag kolom
-│   ├── review_chain/
-│   │   ├── __init__.py
-│   │   ├── pipeline.py             # PipelineConfig, ReviewChain, review_chain()
-│   │   ├── benchmark.py            # timing per stage & total
-│   │   └── schemas.py              # tipe konfigurasi pipeline/preset
-│   ├── utils/
-│   │   ├── __init__.py             # normalize_text, unicode_normalize_nfkc, strip_control_chars, io helpers
-│   │   ├── unicode.py              # NFKC normalize
-│   │   ├── io.py                   # importlib.resources helpers
-│   │   └── regex_cache.py          # precompile & cache pattern
-│   ├── functions/                  # modul granular + legacy shims
-│   │   ├── __init__.py
-│   │   ├── cartboard.py            # shim lama (jika dibutuhkan)
-│   │   ├── cleaning.py             # util pembersihan level-fungsi
-│   │   ├── miner.py                # review funcs (rating, acronyms, slang, dst.)
-│   │   ├── pii.py                  # PII handlers
-│   │   ├── normalize_repeated.py   # reduksi pengulangan karakter
-│   │   ├── normalize_whitespace.py
-│   │   ├── remove_digits.py
-│   │   ├── remove_punctuation.py
-│   │   ├── stopwords.py
-│   │   ├── strip_html.py
-│   │   ├── to_lowercase.py
-│   │   └── utils/
+│   │   ├── cleaner/
+│   │   │   ├── __init__.py
+│   │   │   └── basic.py            # remove_tags, case_normal, remove_stopwords, dll.
+│   │   ├── patterns/
+│   │   │   ├── __init__.py
+│   │   │   └── pii.py              # masker PII (email/telepon, dll.)
+│   │   └── review/
 │   │       ├── __init__.py
-│   │       ├── unicode.py
-│   │       ├── io.py
-│   │       └── regexes.py          # RE_HTML_TAGS, RE_PHONE, RE_EMAIL, RE_ADDRESS, RE_KTP, RE_ELONGATION
-│   └── data/                       # package data (dibundel saat install)
-│       ├── stopwords_id.txt
-│       ├── slang_map.json
-│       ├── acronyms.json
-│       └── patterns/
-│           ├── phone.regex
-│           ├── email.regex
-│           ├── address.regex
-│           └── ktp.regex
-└── tests/
-    ├── __init__.py
-    ├── conftest.py                 # tambahkan repo-root ke sys.path untuk import lokal
-    ├── acceptance/
-    │   └── test_f1_f5.py
-    ├── integration/
-    │   ├── test_pipeline_end_to_end.py
-    │   └── test_preset_ecommerce_review.py
-    ├── unit/
-    │   ├── test_cartboard.py
-    │   ├── test_cleaning.py
-    │   ├── test_miner.py
-    │   ├── test_pii.py
-    │   └── test_utils.py
-    ├── test_clean.py
-    ├── test_presets.py
-    └── test_utils.py
+│   │       └── advanced.py         # fungsi review lanjutan
+│   ├── resources/                  # data pendukung (dibundel)
+│   │   ├── acronyms.csv
+│   │   ├── contractions.json
+│   │   ├── slang_dict.json
+│   │   └── stopwords/
+│   │       └── id.txt              # stopwords Indonesia (tambahan/abbr)
+│   ├── tests/
+│   │   ├── test_chain.py
+│   │   ├── test_cleaner_basic.py
+│   │   ├── test_patterns_pii.py
+│   │   └── test_review_advanced.py
+│   └── utils/
+│       ├── lang.py
+│       ├── regexes.py
+│       ├── text.py                 # text helpers
+│       └── whitelist.py
+└── notebooks/
+    └── leksara_quickstart.ipynb    # quickstart & demo
 ```
 
 ## Milestones

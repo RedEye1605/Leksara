@@ -64,10 +64,6 @@ Source = "https://example.com/leksara/repo"
 Issues = "https://example.com/leksara/issues"
 Documentation = "https://example.com/leksara/docs"
 
-[project.scripts]
-leksara-bench = "leksara.core.logging:main"      # opsional (siapkan main() bila dipakai)
-leksara-cli = "leksara.core.chain:cli_entry"     # siapkan cli_entry() bila ingin CLI
-
 [tool.setuptools]
 package-dir = {"" = "."}
 include-package-data = true
@@ -76,14 +72,16 @@ include-package-data = true
 where = [""]
 include = ["leksara*"]
 
+# Pastikan seluruh resource di dalam leksara/resources ikut ter-bundle
 [tool.setuptools.package-data]
 leksara = [
   "resources/*.json",
   "resources/*.csv",
   "resources/stopwords/*.txt",
+  "resources/**/*.json",
+  "resources/**/*.csv",
+  "resources/**/*.txt"
 ]
-
-# (Jika ingin MANIFEST.in, tetap boleh; ini cukup untuk sdist/wheel.)
 
 [tool.ruff]
 line-length = 100
