@@ -31,6 +31,7 @@ except Exception:  # pragma: no cover
 
 # tambahkan import whitelist masker
 from ..utils.whitelist import mask_whitelist, unmask_whitelist
+from .presets import get_preset as _get_preset
 
 TextFn = Callable[[str], str]
 Step = Union[TextFn, Tuple[TextFn, Dict[str, Any]]]
@@ -104,7 +105,6 @@ def leksara(
     if preset is not None:
         if pipeline is not None:
             raise ValueError("Gunakan salah satu: preset atau pipeline, bukan keduanya.")
-        from .presets import get_preset as _get_preset
         pipeline = _get_preset(preset)
 
     if pipeline is None:
@@ -203,7 +203,6 @@ class ReviewChain:
     @classmethod
     def from_preset(cls, name: str) -> "ReviewChain":
         """Bangun ReviewChain langsung dari nama preset."""
-        from .presets import get_preset as _get_preset
         steps = _get_preset(name)
         return cls.from_steps(patterns=steps.get("patterns"), functions=steps.get("functions"))
 
