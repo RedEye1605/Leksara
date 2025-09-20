@@ -77,6 +77,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
@@ -92,6 +93,7 @@ jobs:
       - name: Build source and wheel distribution
         run: |
           poetry build
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -142,6 +144,7 @@ jobs:
           gh release create ${{ needs.details.outputs.tag_name }} dist/* --title ${{ needs.details.outputs.tag_name }} --generate-notes
 
   bump_homebrew_formula:
+    if: ${{ false }}
     name: Dispatch event to Repo B
     needs: [details, github_release, pypi_publish]
     if: ${{ secrets.BREW_TAP_TOKEN != '' && env.TAP_NAME != '' }}  # skip jika token/ TAP_NAME belum ada
