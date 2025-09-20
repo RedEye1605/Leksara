@@ -72,15 +72,10 @@ include-package-data = true
 where = [""]
 include = ["leksara*"]
 
-# Pastikan seluruh resource di dalam leksara/resources ikut ter-bundle
 [tool.setuptools.package-data]
 leksara = [
-  "resources/*.json",
-  "resources/*.csv",
-  "resources/stopwords/*.txt",
-  "resources/**/*.json",
-  "resources/**/*.csv",
-  "resources/**/*.txt"
+  "resources/*",
+  "resources/**/*"
 ]
 
 [tool.ruff]
