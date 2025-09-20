@@ -86,18 +86,27 @@ def _default_pipeline() -> Dict[str, List[Step]]:
 
 # ------------------------ functional API -----------------------
 def leksara(
-    data,  # pd.Series | Iterable[str] (annotation dilonggarkan agar pd opsional)
+    data,  # pd.Series | Iterable[str]
     pipeline: Optional[Dict[str, Iterable[Step]]] = None,
     *,
     benchmark: bool = False,
+    preset: Optional[str] = None,
 ):
     """Eksekusi pipeline: patterns → functions.
 
     Args:
         data: pd.Series atau iterable of str
         pipeline: {"patterns": [...], "functions": [...]} (optional)
+        preset: nama preset (mis. "ecommerce_review") sebagai sugar untuk pipeline
         benchmark: jika True kembalikan (hasil, metrics)
     """
+    # Pilih salah satu: preset atau pipeline
+    if preset is not None:
+        if pipeline is not None:
+            raise ValueError("Gunakan salah satu: preset atau pipeline, bukan keduanya.")
+        from .presets import get_preset as _get_preset
+        pipeline = _get_preset(preset)
+
     if pipeline is None:
         pipeline = _default_pipeline()
 
@@ -148,8 +157,9 @@ def run_pipeline(
     pipeline: Optional[Dict[str, Iterable[Step]]] = None,
     *,
     benchmark: bool = False,
+    preset: Optional[str] = None,
 ):
-    return leksara(data, pipeline=pipeline, benchmark=benchmark)
+    return leksara(data, pipeline=pipeline, benchmark=benchmark, preset=preset)
 
 
 # -------------------------- OOP API ----------------------------
@@ -189,6 +199,13 @@ class ReviewChain:
             seq.append(unmask_whitelist)         # Kembalikan token whitelist
 
         return cls(seq)
+
+    @classmethod
+    def from_preset(cls, name: str) -> "ReviewChain":
+        """Bangun ReviewChain langsung dari nama preset."""
+        from .presets import get_preset as _get_preset
+        steps = _get_preset(name)
+        return cls.from_steps(patterns=steps.get("patterns"), functions=steps.get("functions"))
 
     def __repr__(self) -> str:
         return f"ReviewChain(steps={self.named_steps})"
