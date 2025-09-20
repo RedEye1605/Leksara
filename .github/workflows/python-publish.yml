@@ -11,6 +11,7 @@ on:
 env:
   PACKAGE_NAME: "leksara"
   OWNER: "RedEye1605"
+  TAP_NAME: ""  # isi nama repo tap (mis. "homebrew-tap") atau biarkan kosong agar job dilewati
 
 jobs:
   details:
@@ -70,20 +71,13 @@ jobs:
     needs: [details, check_pypi]
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch information from PyPI
-        run: |
-          response=$(curl -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json || echo "{}")
-          latest_previous_version=$(echo $response | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
-          if [ -z "$latest_previous_version" ]; then
-            echo "Package not found on PyPI."
-            latest_previous_version="0.0.0"
-          fi
-          echo "Latest version on PyPI: $latest_previous_version"
-          echo "latest_previous_version=$latest_previous_version" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
@@ -99,6 +93,7 @@ jobs:
       - name: Build source and wheel distribution
         run: |
           poetry build
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -151,23 +146,25 @@ jobs:
   bump_homebrew_formula:
     name: Dispatch event to Repo B
     needs: [details, github_release, pypi_publish]
+    if: ${{ secrets.BREW_TAP_TOKEN != '' && env.TAP_NAME != '' }}  # skip jika token/ TAP_NAME belum ada
     runs-on: ubuntu-latest
     environment:
       name: release
+    continue-on-error: true
     steps:
       - name: Dispatch Repository Dispatch event
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.BREW_TAP_TOKEN }}
-          repository: ${{ env.OWNER }}/{{ env.TAP_NAME }}
+          repository: ${{ format('{0}/{1}', env.OWNER, env.TAP_NAME) }}
           event-type: "update-formula"
           client-payload: |-
-            { 
-              "formula_version": "${{env.FORMULA_VERSION}}", 
-              "formula_url": "${{ env.FORMULA_URL }}", 
+            {
+              "formula_version": "${{env.FORMULA_VERSION}}",
+              "formula_url": "${{ env.FORMULA_URL }}",
               "formula_name": "${{ env.FORMULA_NAME }}"
             }
         env:
           FORMULA_VERSION: ${{ needs.details.outputs.new_version }}
           FORMULA_NAME: ${{ env.PACKAGE_NAME }}
-          FORMULA_URL: https://github.com/${{env.OWNER}}/${{env.PACKAGE_NAME}}/releases/download/${{ needs.details.outputs.new_version }}/${{env.PACKAGE_NAME}}-${{ needs.details.outputs.new_version }}.tar.gz
+          FORMULA_URL: https://github.com/${{ env.OWNER }}/${{ env.PACKAGE_NAME }}/releases/download/${{ needs.details.outputs.tag_name }}/${{ env.PACKAGE_NAME }}-${{ needs.details.outputs.new_version }}.tar.gz
