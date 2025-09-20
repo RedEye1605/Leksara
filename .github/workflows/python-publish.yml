@@ -11,7 +11,6 @@ on:
 env:
   PACKAGE_NAME: "leksara"
   OWNER: "RedEye1605"
-  TAP_NAME: ""  # isi nama repo tap (mis. "homebrew-tap") atau biarkan kosong agar job dilewati
 
 jobs:
   details:
@@ -147,25 +146,23 @@ jobs:
     if: ${{ false }}
     name: Dispatch event to Repo B
     needs: [details, github_release, pypi_publish]
-    if: ${{ secrets.BREW_TAP_TOKEN != '' && env.TAP_NAME != '' }}  # skip jika token/ TAP_NAME belum ada
     runs-on: ubuntu-latest
     environment:
       name: release
-    continue-on-error: true
     steps:
       - name: Dispatch Repository Dispatch event
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.BREW_TAP_TOKEN }}
-          repository: ${{ format('{0}/{1}', env.OWNER, env.TAP_NAME) }}
-          event-type: "update-formula"
           repository: ${{ env.OWNER }}/${{ env.TAP_NAME }}
-            {
-              "formula_version": "${{env.FORMULA_VERSION}}",
-              "formula_url": "${{ env.FORMULA_URL }}",
+          event-type: "update-formula"
+          client-payload: |-
+            { 
+              "formula_version": "${{env.FORMULA_VERSION}}", 
+              "formula_url": "${{ env.FORMULA_URL }}", 
               "formula_name": "${{ env.FORMULA_NAME }}"
             }
         env:
           FORMULA_VERSION: ${{ needs.details.outputs.new_version }}
           FORMULA_NAME: ${{ env.PACKAGE_NAME }}
-          FORMULA_URL: https://github.com/${{ env.OWNER }}/${{ env.PACKAGE_NAME }}/releases/download/${{ needs.details.outputs.tag_name }}/${{ env.PACKAGE_NAME }}-${{ needs.details.outputs.new_version }}.tar.gz
+          FORMULA_URL: https://github.com/${{env.OWNER}}/${{env.PACKAGE_NAME}}/releases/download/${{ needs.details.outputs.tag_name }}/${{env.PACKAGE_NAME}}-${{ needs.details.outputs.new_version }}.tar.gz
