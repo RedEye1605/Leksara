@@ -154,7 +154,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.BREW_TAP_TOKEN }}
-          repository: ${{ env.OWNER }}/{{ env.TAP_NAME }}
+          repository: ${{ env.OWNER }}/${{ env.TAP_NAME }}
           event-type: "update-formula"
           client-payload: |-
             { 
