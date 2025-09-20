@@ -3,15 +3,15 @@
 from typing import Iterable, Tuple, Dict, Set
 import re
 
-DEFAULT_WHITELIST: Set[str] = {"[RATING]", "[PHONE_NUMBER]", "[EMAIL]", "[ADDRESS]", "[NIK]"}
+DEFAULT_WHITELIST: Set[str] = {"[RATING]", "[PHONE_NUMBER]", "[EMAIL]", "[ADDRESS]", "[NIK]", "[URL]"}
 
 def _build_mapping(whitelist: Iterable[str]) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Bangun mapping token -> placeholder (Private Use Area) dan sebaliknya."""
     tokens = sorted(set(whitelist))
-    base = 0xE000  # Unicode Private Use Area start
+    base = 0xE000  
     fwd: Dict[str, str] = {}
     for i, tok in enumerate(tokens):
-        fwd[tok] = chr(base + i)  # 1 char unik per token
+        fwd[tok] = chr(base + i)  
     rev = {v: k for k, v in fwd.items()}
     return fwd, rev
 

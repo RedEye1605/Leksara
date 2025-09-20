@@ -208,3 +208,6 @@ __marimo__/
 
 # Conda environment files
 .conda
+
+# vscode
+.vscode
