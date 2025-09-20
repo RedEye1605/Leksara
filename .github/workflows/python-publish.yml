@@ -156,7 +156,7 @@ jobs:
           token: ${{ secrets.BREW_TAP_TOKEN }}
           repository: ${{ format('{0}/{1}', env.OWNER, env.TAP_NAME) }}
           event-type: "update-formula"
-          client-payload: |-
+          repository: ${{ env.OWNER }}/${{ env.TAP_NAME }}
             {
               "formula_version": "${{env.FORMULA_VERSION}}",
               "formula_url": "${{ env.FORMULA_URL }}",
