@@ -1,4 +1,7 @@
 # Leksara
+[![PyPI version](https://badge.fury.io/py/leksara.svg)](https://pypi.org/project/leksara/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/leksara)
+![PyPI - License](https://img.shields.io/pypi/l/leksara)
 
 ## Description
 **Leksara** is a Python toolkit designed to streamline the preprocessing and cleaning of Indonesian text data for Data Scientists and Machine Learning Engineers. It focuses on handling messy and noisy Indonesian text from various domains such as e-commerce reviews, social media posts, and chat conversations. The tool helps clean text by handling Indonesian-specific challenges like slang words, regional expressions, informal abbreviations, and mixed language content, while also providing standard cleaning features like punctuation and stopword removal. This makes it an essential tool for Indonesian text analysis and machine learning model preparation.
