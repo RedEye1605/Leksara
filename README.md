@@ -1,11 +1,3 @@
- # leksara
- 
- Library pemrosesan teks bahasa Indonesia untuk domain e-commerce.
- 
- Lihat `docs/usage.md` untuk contoh pemakaian dan `src/leksara` untuk API.
- 
- Status: scaffold awal dengan placeholder API; siap diisi implementasi.
-
 # Leksara
 
 ## Description
