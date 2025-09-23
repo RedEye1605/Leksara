@@ -27,6 +27,19 @@ except Exception as e:
     _BLACKLIST_PATTERNS = []
     _FLAGS = []
 
+try:
+    dict_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "acronym_dict.json"
+    rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
+    with open(dict_path, 'r', encoding='utf-8') as f:
+        _ACRONYM_DICT = json.load(f)
+    with open(rules_path, 'r', encoding='utf-8') as f:
+        rules_data = json.load(f).get("sections", {}).get("acronym", {}).get("conflict_rules", [])
+        _CONFLICT_RULES = {rule["token"]: rule for rule in rules_data}
+except Exception as e:
+    print(f"Gagal memuat file konfigurasi akronim: {e}")
+    _ACRONYM_DICT = {}
+    _CONFLICT_RULES = {}
+
 def replace_rating(text: str) -> str:
     if not isinstance(text, str) or not text:
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
@@ -183,11 +196,42 @@ def shorten_elongation(text: str, max_repeat: int = 2) -> str:
 
     return text
 
-def replace_acronym(text):
-    pass
+def replace_acronym(text: str, mode: str = "remove")-> str:
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
 
-def remove_acronym(text):
-    pass
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in _ACRONYM_DICT.keys()) + r')\b', re.IGNORECASE)
+
+    def replacer(match):
+        acronym = match.group(0).lower()
+        replacement = None
+
+        if acronym in _CONFLICT_RULES:
+            conflict = _CONFLICT_RULES[acronym]
+            for rule in conflict.get("rules", []):
+                if re.search(rule["context_pattern"], text, re.IGNORECASE):
+                    replacement = rule["preferred"]
+                    break
+            if replacement is None:
+                return match.group(0)
+        else:
+            standard_replacement = _ACRONYM_DICT.get(acronym)
+            if isinstance(standard_replacement, list):
+                replacement = standard_replacement[0]
+            else:
+                replacement = standard_replacement
+
+        if mode == "replace":
+            return replacement
+        elif mode == "remove":
+            return ""
+
+    return pattern.sub(replacer, text)
+
 
 def normalize_slangs(text):
     pass
