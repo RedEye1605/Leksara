@@ -3,7 +3,7 @@
 import re
 import pandas as pd
 import json
-import pathlib as Path
+from pathlib import Path
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 # buat stemmer sekali saja (hemat waktu)
@@ -39,6 +39,30 @@ except Exception as e:
     print(f"Gagal memuat file konfigurasi akronim: {e}")
     _ACRONYM_DICT = {}
     _CONFLICT_RULES = {}
+
+# Slang dictionary & optional conflict rules (mirroring acronym style)
+try:
+    slang_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "slangs_dict.json"
+    rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
+    with open(slang_path, 'r', encoding='utf-8') as f:
+        _SLANGS_DICT = json.load(f)
+    # Try fetch conflict rules for slang if present
+    _SLANG_CONFLICT_RULES = {}
+    try:
+        with open(rules_path, 'r', encoding='utf-8') as f:
+            rules_root = json.load(f)
+            slang_rules = (
+                rules_root.get("sections", {})
+                .get("slang", {})
+                .get("conflict_rules", [])
+            )
+            _SLANG_CONFLICT_RULES = {rule.get("token"): rule for rule in slang_rules}
+    except Exception:
+        _SLANG_CONFLICT_RULES = {}
+except Exception as e:
+    print(f"Gagal memuat file konfigurasi slang: {e}")
+    _SLANGS_DICT = {}
+    _SLANG_CONFLICT_RULES = {}
     
 def replace_rating(text: str) -> str:
     if not isinstance(text, str) or not text:
@@ -233,8 +257,48 @@ def replace_acronym(text: str, mode: str = "remove")-> str:
     return pattern.sub(replacer, text)
 
 
-def normalize_slangs(text):
-    pass
+def normalize_slangs(text: str, mode: str = "replace") -> str:
+    """Normalisasi slang dengan kamus."""
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    if not _SLANGS_DICT:
+        return text
+
+    # Kompilasi pola sekali per pemanggilan (kamus relatif kecil)
+    pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in _SLANGS_DICT.keys()) + r')\b', re.IGNORECASE)
+
+    def replacer(match):
+        token = match.group(0).lower()
+        replacement = None
+
+        # Aturan konflik (jika ada di rules file)
+        if token in _SLANG_CONFLICT_RULES:
+            conflict = _SLANG_CONFLICT_RULES[token]
+            for rule in conflict.get("rules", []):
+                if re.search(rule.get("context_pattern", ""), text, re.IGNORECASE):
+                    replacement = rule.get("preferred")
+                    break
+            if replacement is None:
+                # Jika tak ada konteks yang cocok → pertahankan apa adanya
+                return match.group(0)
+        else:
+            std = _SLANGS_DICT.get(token)
+            if isinstance(std, list) and std:
+                replacement = std[0]
+            else:
+                replacement = std
+
+        if mode == "replace":
+            return replacement if replacement is not None else match.group(0)
+        else:  # mode == "remove"
+            return ""
+
+    return pattern.sub(replacer, text)
 
 def expand_contraction(text):
     pass
