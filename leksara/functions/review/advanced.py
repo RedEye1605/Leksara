@@ -39,7 +39,7 @@ except Exception as e:
     print(f"Gagal memuat file konfigurasi akronim: {e}")
     _ACRONYM_DICT = {}
     _CONFLICT_RULES = {}
-
+    
 def replace_rating(text: str) -> str:
     if not isinstance(text, str) or not text:
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
