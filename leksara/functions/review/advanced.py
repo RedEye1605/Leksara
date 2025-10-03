@@ -237,8 +237,48 @@ def replace_acronym(text: str, mode: str = "remove")-> str:
     return pattern.sub(replacer, text)
 
 
-def normalize_slangs(text):
-    pass
+def normalize_slangs(text: str, mode: str = "replace") -> str:
+    """Normalisasi slang dengan kamus."""
+    if not isinstance(text, str):
+        raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    allowed_modes = {"remove", "replace"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Mode '{mode}' tidak valid. Pilihan yang tersedia adalah {list(allowed_modes)}")
+
+    if not _SLANGS_DICT:
+        return text
+
+    # Kompilasi pola sekali per pemanggilan (kamus relatif kecil)
+    pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in _SLANGS_DICT.keys()) + r')\b', re.IGNORECASE)
+
+    def replacer(match):
+        token = match.group(0).lower()
+        replacement = None
+
+        # Aturan konflik (jika ada di rules file)
+        if token in _SLANG_CONFLICT_RULES:
+            conflict = _SLANG_CONFLICT_RULES[token]
+            for rule in conflict.get("rules", []):
+                if re.search(rule.get("context_pattern", ""), text, re.IGNORECASE):
+                    replacement = rule.get("preferred")
+                    break
+            if replacement is None:
+                # Jika tak ada konteks yang cocok → pertahankan apa adanya
+                return match.group(0)
+        else:
+            std = _SLANGS_DICT.get(token)
+            if isinstance(std, list) and std:
+                replacement = std[0]
+            else:
+                replacement = std
+
+        if mode == "replace":
+            return replacement if replacement is not None else match.group(0)
+        else:  # mode == "remove"
+            return ""
+
+    return pattern.sub(replacer, text)
 
 # Untuk mempertahankan format kapitalisasi saat expand_contraction
 def _preserve_case(original: str, expansion: str) -> str:
