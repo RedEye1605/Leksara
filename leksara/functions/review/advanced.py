@@ -30,40 +30,20 @@ except Exception as e:
 try:
     dict_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "acronym_dict.json"
     rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
+    contractions_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "contractions_dict.json" 
     with open(dict_path, 'r', encoding='utf-8') as f:
         _ACRONYM_DICT = json.load(f)
     with open(rules_path, 'r', encoding='utf-8') as f:
         rules_data = json.load(f).get("sections", {}).get("acronym", {}).get("conflict_rules", [])
         _CONFLICT_RULES = {rule["token"]: rule for rule in rules_data}
+    with open(contractions_path, 'r', encoding='utf-8') as f:
+        _CONTRACTIONS_DICT = json.load(f)
 except Exception as e:
     print(f"Gagal memuat file konfigurasi akronim: {e}")
     _ACRONYM_DICT = {}
     _CONFLICT_RULES = {}
+    _CONTRACTIONS_DICT = {}
 
-# Slang dictionary & optional conflict rules (mirroring acronym style)
-try:
-    slang_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "slangs_dict.json"
-    rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
-    with open(slang_path, 'r', encoding='utf-8') as f:
-        _SLANGS_DICT = json.load(f)
-    # Try fetch conflict rules for slang if present
-    _SLANG_CONFLICT_RULES = {}
-    try:
-        with open(rules_path, 'r', encoding='utf-8') as f:
-            rules_root = json.load(f)
-            slang_rules = (
-                rules_root.get("sections", {})
-                .get("slang", {})
-                .get("conflict_rules", [])
-            )
-            _SLANG_CONFLICT_RULES = {rule.get("token"): rule for rule in slang_rules}
-    except Exception:
-        _SLANG_CONFLICT_RULES = {}
-except Exception as e:
-    print(f"Gagal memuat file konfigurasi slang: {e}")
-    _SLANGS_DICT = {}
-    _SLANG_CONFLICT_RULES = {}
-    
 def replace_rating(text: str) -> str:
     if not isinstance(text, str) or not text:
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
@@ -300,8 +280,75 @@ def normalize_slangs(text: str, mode: str = "replace") -> str:
 
     return pattern.sub(replacer, text)
 
-def expand_contraction(text):
-    pass
+# Untuk mempertahankan format kapitalisasi saat expand_contraction
+def _preserve_case(original: str, expansion: str) -> str:
+    if not original:
+        return expansion
+    try:
+        if original.isupper():
+            return expansion.upper()
+        if len(original) > 1 and original[0].isupper() and original[1:].islower():
+            return expansion.capitalize()
+        if len(original) == 1 and original.isupper():
+            return expansion.upper()
+    except Exception:
+        pass
+    return expansion
+
+def expand_contraction(text: str) -> str:
+    """
+    Expand contractions using `leksara/resources/dictionary/contractions_dict.json`.
+
+    Behaviors:
+    - case-insensitive matching on whole-word boundaries
+    - preserve capitalization style of the original token
+    - tolerant jika kamus tidak ada / kosong -> kembalikan teks semula
+    """
+    if not isinstance(text, str):
+        # bukan string, kembalikan apa adanya
+        return text
+
+    contractions = _CONTRACTIONS_DICT or {}
+    if not contractions:
+        return text
+
+    # Buat key list, gunakan lower-case keys untuk lookup konsisten.
+    keys = sorted((str(k) for k in contractions.keys()), key=len, reverse=True)
+    alternation = "|".join(re.escape(k) for k in keys)
+    
+    # menggunakan lookaround untuk lebih aman: (?<!\w)(key)(?!\w)
+    try:
+        pattern = re.compile(rf"(?<!\w)({alternation})(?!\w)", flags=re.IGNORECASE)
+    except re.error:
+        # jika alternation terlalu panjang atau ada karakter aneh -> fallback: loop manual per key
+        pattern = None
+
+    def _replace_with_preserve(m: re.Match) -> str:
+        orig = m.group(0)
+        key = orig.lower()
+        expansion = contractions.get(key)
+        if expansion is None:
+            # fallback: coba raw key atau return original
+            expansion = contractions.get(orig, orig)
+        return _preserve_case(orig, str(expansion))
+
+    if pattern is not None:
+        try:
+            return pattern.sub(_replace_with_preserve, text)
+        except Exception:
+            # kalau gagal, fallback ke loop manual di bawah
+            pass
+
+    # Fallback safe: lakukan penggantian per-key menggunakan word boundaries yang sederhana
+    out = text
+    for k in keys:
+        k_esc = re.escape(k)
+        try:
+            pat = re.compile(rf"(?<!\w)({k_esc})(?!\w)", flags=re.IGNORECASE)
+            out = pat.sub(lambda m: _preserve_case(m.group(0), str(contractions.get(m.group(0).lower(), m.group(0)))), out)
+        except re.error:
+            continue
+    return out
 
 # Deteksi placeholder whitelist (Private Use Area) agar tidak di-stem
 def _is_masked_whitelist_token(token: str) -> bool:
