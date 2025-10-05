@@ -33,8 +33,11 @@ def replace_phone(text: str, mode: str = "remove") -> str:
 
     replacement_token = '[PHONE_NUMBER]' if mode == "replace" else ''
 
+
     def validate_and_replace(match):
-        potential_number = match.group(0)
+        potential_number = match.group(0).strip()
+        potential_number = re.sub(r'^\(\+62\)', '+62', potential_number)
+        potential_number = re.sub(r'(\+?62)\s+', r'\1', potential_number)
         cleaned_number = re.sub(r'[-\s]', '', potential_number)
 
         normalized_number = None
@@ -47,9 +50,12 @@ def replace_phone(text: str, mode: str = "remove") -> str:
             return replacement_token
 
         return potential_number
-    
+
     PHONE_PATTERN = phone_config.get("pattern", "")
-    return re.sub(PHONE_PATTERN, validate_and_replace, text)
+    result = re.sub(PHONE_PATTERN, validate_and_replace, text)
+
+    result = re.sub(r'\s{2,}', ' ', result).strip()
+    return result
 
 def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     if not isinstance(text, str):
