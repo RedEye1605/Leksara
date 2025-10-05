@@ -61,32 +61,55 @@ def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     trigger_pattern = trigger_config.get("pattern", "")
     address_components = address_config.get("components", {})
 
-    if kwargs:
-        allowed_keys = {k.replace("pii_addr_", "") for k in address_components.keys()}
-        provided_keys = set(kwargs.keys())
-        unknown_keys = provided_keys.difference(allowed_keys)
-        if unknown_keys:
-            raise KeyError(f"Parameter tidak dikenal: {list(unknown_keys)}. Pilihan yang valid adalah: {list(allowed_keys)}")
-
     if not re.search(trigger_pattern, text, flags=re.IGNORECASE):
         return text
 
-    processed_text = text
-
-    patterns_to_run = []
-
     if not kwargs:
-        patterns_to_run = [v['pattern'] for v in address_components.values()]
-
+        active_components = list(address_components.values())
     else:
-        for component_id, component_data in address_components.items():
-            simple_component_name = component_id.replace("pii_addr_", "")
-            if kwargs.get(simple_component_name, False):
-                patterns_to_run.append(component_data['pattern'])
+        active_components = []
+        for cid, cdata in address_components.items():
+            cname = cid.replace("pii_addr_", "")
+            if kwargs.get(cname, False):
+                active_components.append(cdata)
 
-    for pattern in patterns_to_run:
-        processed_text = re.sub(pattern, replacement_token, processed_text, flags=re.IGNORECASE)
+    matches = []
+    for comp in active_components:
+        pattern = comp['pattern']
+        for m in re.finditer(pattern, text, flags=re.IGNORECASE):
+            start, end = m.start(), m.end()
 
+            while end < len(text) and text[end] in " ,.;:":
+                end += 1
+            matches.append((start, end))
+
+    matches.sort()
+    merged = []
+    MERGE_THRESHOLD = 10
+
+    for start, end in matches:
+        if not merged:
+            merged.append([start, end])
+        else:
+            prev_start, prev_end = merged[-1]
+            gap = start - prev_end
+            if gap <= MERGE_THRESHOLD and not re.search(r'[.?!]', text[prev_end:start]):
+                merged[-1][1] = end
+            else:
+                merged.append([start, end])
+
+    result = []
+    last_idx = 0
+    for start, end in merged:
+        result.append(text[last_idx:start])
+        if replacement_token:
+            result.append(' ' + replacement_token + ' ')
+        last_idx = end
+    result.append(text[last_idx:])
+    processed_text = ''.join(result)
+
+    processed_text = re.sub(r'\s*([,.;:])\s*', r'\1 ', processed_text)
+    processed_text = re.sub(r'([,.;:]){2,}', r'\1', processed_text)
     processed_text = re.sub(r'\s{2,}', ' ', processed_text).strip()
     return processed_text
 

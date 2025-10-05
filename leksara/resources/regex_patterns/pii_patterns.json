@@ -19,20 +19,20 @@
 
   "pii_address": {
     "trigger_pattern": {
-      "pattern": "\\b(Jl\\.?|Jalan|Gg\\.?|Gang|RT|RW|Kel(?:urahan)?\\.?|Kec(?:amatan)?\\.?|Kab(?:upaten)?\\.?|Kota|Prov(?:insi)?\\.?|K\\.?\\s?P\\.?|KP)\\b",
+      "pattern": "\\b(Jl\\.?|Jalan|Gg\\.?|Gang|RT|RW|Kel(?:urahan)?\\.?|Kec(?:amatan)?\\.?|Kab(?:upaten)?\\.?|Kota|Prov(?:insi)?\\.?|No\\.?|Nomor)\\b",
       "desc": "Pemicu window alamat",
       "example": "Jl. Merdeka"
     },
 
     "components": {
       "pii_addr_street": {
-        "pattern": "\\b(?:Jl\\.?|Jalan|Gg\\.?|Gang)\\b\\s+[A-Z0-9][A-Za-z0-9 .\\-]*",
+        "pattern": "\\b(?:Jl\\.?|Jalan|Gg\\.?|Gang)\\s+[A-Z0-9][A-Za-z0-9 ./-]*(?:\\s+\\d+)?(?=\\s*(?:,|\\.|$|No\\.?|Nomor|RT|RW|Kel|Kec|Kab|Kota|Prov))",
         "desc": "Nama jalan/gang",
         "example": "Jalan Sudirman"
       },
 
       "pii_addr_house": {
-        "pattern": "\\b(?:Jl\\.?|Jalan|Gg\\.?|Gang)\\b\\s+[A-Z0-9][A-Za-z0-9 .\\-]*",
+        "pattern": "\\b(?:No\\.?|No|Nomor|Nomer|Nmr|#)\\s*\\w+\\b",
         "desc": "Nama jalan/gang",
         "example": "Jalan Sudirman"
       },
@@ -44,25 +44,25 @@
       },
 
       "pii_addr_kel": {
-        "pattern": "\\bKel(?:urahan)?\\.?\\s+[A-Za-z][A-Za-z .\\-]*\\b",
+        "pattern": "\\bKel(?:urahan)?\\.?\\s+[A-Za-z][A-Za-z ./-]*\\b",
         "desc": "Kelurahan + nama",
         "example": "Kelurahan Melati"
       },
 
       "pii_addr_kec": {
-        "pattern": "\\bKec(?:amatan)?\\.?\\s+[A-Za-z][A-Za-z .\\-]*\\b",
+        "pattern": "\\bKec(?:amatan)?\\.?\\s+[A-Za-z][A-Za-z ./-]*\\b",
         "desc": "Kecamatan + nama",
         "example": "Kecamatan Setiabudi"
       },
 
       "pii_addr_kabkota": {
-        "pattern": "\\b(?:Kab(?:upaten)?|Kota)\\.?\\s+[A-Za-z][A-Za-z .\\-]*\\b",
+        "pattern": "\\b(?:Kab(?:upaten)?|Kota)\\.?\\s+[A-Za-z][A-Za-z ./-]*\\b",
         "desc": "Kabupaten/Kota + nama",
         "example": "Kabupaten Sragen"
       },
 
       "pii_addr_prov": {
-        "pattern": "\\bProv(?:insi)?\\.?\\s+[A-Za-z][A-Za-z .\\-]*\\b",
+        "pattern": "\\bProv(?:insi)?\\.?\\s+[A-Za-z][A-Za-z ./-]*\\b",
         "desc": "Provinsi + nama",
         "example": "Provinsi Jawa Tengah"
       },
