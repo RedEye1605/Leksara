@@ -54,9 +54,6 @@ def replace_phone(text: str, mode: str = "remove") -> str:
     PHONE_PATTERN = phone_config.get("pattern", "")
     result = re.sub(PHONE_PATTERN, validate_and_replace, text)
 
-    result = re.sub(r'\s{2,}', ' ', result).strip()
-    return result
-
 def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     if not isinstance(text, str):
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
