@@ -114,13 +114,16 @@ def replace_rating(text: str) -> str:
             elif rule_type == 'emoji_or_mult':
                 mult_group_idx = rule.get('mult_group')
                 if mult_group_idx and mult_group_idx <= len(match.groups()) and match.group(mult_group_idx):
-                    raw_value = match.group(mult_group_idx)
+                    try:
+                        rating = float(match.group(mult_group_idx))
+                        return str(round(rating, 2))
+                    except Exception:
+                        return matched_text
                 else:
-                    count = 0
-                    s = match.group(0)
-                    for e in rule.get('emojis', []):
-                        count += s.count(e)
-                    raw_value = count
+                    count = sum(matched_text.count(e) for e in rule.get('emojis', []))
+                    if count > 0:
+                        return str(round(count, 2))
+                    return matched_text
 
             if raw_value is None: return matched_text
 
@@ -168,7 +171,7 @@ def replace_rating(text: str) -> str:
                         leading = re.match(r'^\s*', matched_text).group(0)
                         trailing = re.search(r'\s*$', matched_text).group(0)
                         return f"{leading}{ph}{trailing}"
-                
+
                 leading = re.match(r'^\s*', matched_text).group(0)
                 trailing = re.search(r'\s*$', matched_text).group(0)
                 return f"{leading}{ph}{trailing}"

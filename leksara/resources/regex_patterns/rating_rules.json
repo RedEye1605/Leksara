@@ -145,11 +145,12 @@
     },
     {
       "id": "emoji_stars_multiplied",
-      "pattern": "\\b(?:⭐|★)\\s*[xX×]\\s*([1-5])\\b",
+      "pattern": "(?:⭐\\uFE0F?|★\\uFE0F?)\\s*[xX×]\\s*([1-5])",
       "example": "Keren banget ⭐ x5, mantap!",
       "type": "emoji_or_mult",
       "mult_group": 1,
-      "priority": 89
+      "priority": 89,
+      "emojis": ["⭐", "★"]
     }
   ],
   "blacklist": [
