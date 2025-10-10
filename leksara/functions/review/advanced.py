@@ -31,6 +31,7 @@ try:
     dict_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "acronym_dict.json"
     rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
     contractions_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "contractions_dict.json" 
+    slangs_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "slangs_dict.json" 
     with open(dict_path, 'r', encoding='utf-8') as f:
         _ACRONYM_DICT = json.load(f)
     with open(rules_path, 'r', encoding='utf-8') as f:
@@ -38,6 +39,8 @@ try:
         _CONFLICT_RULES = {rule["token"]: rule for rule in rules_data}
     with open(contractions_path, 'r', encoding='utf-8') as f:
         _CONTRACTIONS_DICT = json.load(f)
+    with open(slangs_path, 'r', encoding='utf-8') as f:
+        _SLANGS_DICT = json.load(f)
 except Exception as e:
     print(f"Gagal memuat file konfigurasi akronim: {e}")
     _ACRONYM_DICT = {}
@@ -260,8 +263,8 @@ def normalize_slangs(text: str, mode: str = "replace") -> str:
         replacement = None
 
         # Aturan konflik (jika ada di rules file)
-        if token in _SLANG_CONFLICT_RULES:
-            conflict = _SLANG_CONFLICT_RULES[token]
+        if token in _CONFLICT_RULES:
+            conflict = _CONFLICT_RULES[token]
             for rule in conflict.get("rules", []):
                 if re.search(rule.get("context_pattern", ""), text, re.IGNORECASE):
                     replacement = rule.get("preferred")
