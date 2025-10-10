@@ -1,5 +1,6 @@
 import pytest
 import re
+
 from leksara.functions.review.advanced import (
     replace_rating,
     shorten_elongation,
@@ -111,6 +112,44 @@ def test_replace_rating():
         text = "Rating:  4  /5   sangat bagus"
         out = replace_rating(text)
         assert "  " not in out
+
+def test_word_normalization():
+    def test_word_normalization_basic_stem():
+        text = "Saya sedang bermain bola"
+        out = word_normalization(text)
+        assert "main" in out
+        assert "bermain" not in out
+
+    def test_word_normalization_whitelist_keep():
+        text = "Saya sedang bermain bola"
+        word_list = ["bermain"]
+        out = word_normalization(text, word_list=word_list, mode="keep")
+        assert re.search(r"\bbermain\b", out)
+        assert not re.search(r"\bmain\b", out)
+
+
+    def test_word_normalization_whitelist_only():
+        text = "Saya sedang bermain bola"
+        word_list = ["bermain"]
+        out = word_normalization(text, word_list=word_list, mode="only")
+        assert "main" in out
+        assert "bermain" not in out
+
+    def test_word_normalization_protect_bracket():
+        text = "Ini adalah dan [PHONE_NUMBER]"
+        out = word_normalization(text)
+        assert "[PHONE_NUMBER]" in out
+
+    def test_word_normalization_empty_string():
+        assert word_normalization("") == ""
+
+    def test_word_normalization_non_string_input():
+        assert word_normalization(12345) == 12345
+        assert word_normalization(None) is None
+
+    def test_word_normalization_mode_invalid_raises_value_error():
+        with pytest.raises(ValueError):
+            word_normalization("test", mode="invalid")
 
 def test_review_advanced():
     pass

@@ -11,7 +11,7 @@ _factory = StemmerFactory()
 _STEMMER = _factory.create_stemmer()
 
 try:
-    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_patterns.json"
+    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_rules.json"
     with open(config_path, 'r', encoding='utf-8') as f:
         _RATING_CONFIG = json.load(f)
         rules = _RATING_CONFIG.get('rules', [])
