@@ -1,5 +1,5 @@
-import re
 import pytest
+
 from leksara.functions.patterns.pii import (
     replace_phone,
     replace_address,
