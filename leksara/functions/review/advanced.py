@@ -10,16 +10,36 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 _factory = StemmerFactory()
 _STEMMER = _factory.create_stemmer()
 
+
+def _normalize_rating_config(raw_config):
+    if isinstance(raw_config, dict):
+        rules = raw_config.get('rules', [])
+        blacklist = raw_config.get('blacklist', [])
+        flags = raw_config.get('defaults', {}).get('flags', [])
+        return raw_config, rules, blacklist, flags
+    if isinstance(raw_config, list):
+        normalized = {
+            "rules": raw_config,
+            "blacklist": [],
+            "defaults": {"flags": []},
+        }
+        return normalized, raw_config, [], []
+    return {}, [], [], []
+
+
+def _load_rating_config(config_path: Path):
 try:
     config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_rules.json"
     with open(config_path, 'r', encoding='utf-8') as f:
-        _RATING_CONFIG = json.load(f)
-        rules = _RATING_CONFIG.get('rules', [])
-        _SORTED_RULES = sorted(rules, key=lambda r: r.get('priority', 0), reverse=True)
+        raw = json.load(f)
+    return _normalize_rating_config(raw)
 
-        blacklist = _RATING_CONFIG.get('blacklist', [])
-        _BLACKLIST_PATTERNS = [re.compile(item['pattern'], re.IGNORECASE | re.MULTILINE) for item in blacklist]
-        _FLAGS = _RATING_CONFIG.get('defaults', {}).get('flags', [])
+
+try:
+    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_patterns.json"
+    _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(config_path)
+    _SORTED_RULES = sorted(rules, key=lambda r: r.get('priority', 0), reverse=True)
+    _BLACKLIST_PATTERNS = [re.compile(item['pattern'], re.IGNORECASE | re.MULTILINE) for item in blacklist]
 except Exception as e:
     print(f"Gagal memuat file konfigurasi: {e}")
     _RATING_CONFIG = {}

@@ -14,7 +14,24 @@ print(df2.head())
 
 ## Default & Kebijakan
 
-- basic_clean: remove_punct=False, remove_digits=False, reduce_repeat=True, max_repeat=2, keep_newline=False, remove_stopwords=False.
-- Pipeline preset dapat memilih keep_newline=True untuk pelestarian baris.
-- Token masking standar: \<PHONE>, \<EMAIL>, \<ADDRESS>, \<ID>.
+
+## Orchestrator Cepat
+
+Gunakan utilitas `get_flags`, `get_stats`, dan `noise_detect` untuk mengevaluasi teks mentah sebelum masuk pipeline utama.
+
+```python
+from leksara.frames.cartboard import get_flags, get_stats, noise_detect
+
+texts = [
+    "Barangnya mantap!!! Email saya user@example.com",
+    "<p>Promo 50% di https://shop.id 😀</p> Hubungi 0812 1234 5678",
+]
+
+flags = get_flags(texts)
+stats = get_stats(texts)
+noise = noise_detect(texts)
+
+print(flags[["pii_flag", "non_alphabetical_flag"]])
+print(stats[["word_count", "stopwords"]])
+print(noise.head())
 

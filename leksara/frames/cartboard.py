@@ -5,7 +5,6 @@ Fitur
 - Menghasilkan metadata flags:
     - pii_flag: ada PII (email/telepon/NIK/alamat)
     - non_alphabetical_flag: ada karakter non-alfabet (angka/simbol)
-    - lang_mix_flag: heuristik campur bahasa sederhana (tanpa deteksi Bahasa Inggris eksplisit)
 
 Example
 -------
@@ -14,7 +13,7 @@ Example
 >>> board = CartBoard(text, rating=5)
 >>> result = board.to_dict()
 >>> sorted(result.keys())
-['lang_mix_flag', 'non_alphabetical_flag', 'original_text', 'pii_flag', 'rating', 'refined_text']
+['non_alphabetical_flag', 'original_text', 'pii_flag', 'rating', 'refined_text']
 >>> result['pii_flag']  # email detected
 True
 >>> result['refined_text']  # cleaned text
@@ -23,34 +22,410 @@ True
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 import re
+import unicodedata
+
+import pandas as pd
+try:
+    from emoji import emoji_list as _emoji_list
+except Exception:  # pragma: no cover - optional dependency
+    _emoji_list = None
 
 # Cleaning utilities from project
 from ..functions.cleaner.basic import (
+    TAG_RE,
+    URL_PATTERN,
+    URL_PATTERN_WITH_PATH,
+    case_normal,
+    remove_digits,
+    remove_emoji,
     remove_punctuation,
     remove_stopwords,
+    remove_tags,
     remove_whitespace,
     replace_url,
-    case_normal,
     _load_id_stopwords,
+    emoji_dictionary,
 )
 from ..functions.patterns.pii import (
     replace_email,
+    replace_phone,
     email_config,
     phone_config,
     NIK_config,
     address_config,
 )
+from ..functions.review.advanced import replace_rating
 
 
-def _get_id_stopwords_full() -> set:
+ENGLISH_COMMON_WORDS = {
+    "the", "is", "are", "and", "or", "with", "this", "that", "very", "good", "bad",
+    "not", "you", "we", "they", "it", "of", "to", "for", "on", "in", "at", "from",
+    "i", "my", "your", "our", "their", "too", "so", "but", "if", "when", "then",
+    "quality", "product", "service", "fast", "cheap", "thanks", "thank", "best",
+}
+
+_EMOJI_PATTERN = re.compile("|".join(map(re.escape, emoji_dictionary.keys()))) if emoji_dictionary else re.compile(r"$^")
+
+DEFAULT_NON_ALPHA_THRESHOLD = 0.15
+_RATING_FRACTION_PATTERN = re.compile(r"\b\d+/\d+\b")
+_REPEATED_SYMBOL_PATTERN = re.compile(r"([!?#*]){2,}")
+
+
+def _load_rating_patterns() -> List[re.Pattern]:
+    try:
+        config_path = Path(__file__).resolve().parent.parent / "resources" / "regex_patterns" / "rating_patterns.json"
+        with open(config_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        patterns: List[str] = []
+        if isinstance(data, dict):
+            for item in data.get("rules", []):
+                if isinstance(item, dict):
+                    patt = item.get("pattern")
+                    if isinstance(patt, str):
+                        patterns.append(patt)
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    patt = item.get("pattern")
+                    if isinstance(patt, str):
+                        patterns.append(patt)
+                elif isinstance(item, str):
+                    patterns.append(item)
+        compiled: List[re.Pattern] = []
+        for patt in patterns:
+            try:
+                compiled.append(re.compile(patt, flags=re.IGNORECASE))
+            except re.error:
+                continue
+        return compiled
+    except Exception:
+        return []
+
+
+_RATING_PATTERNS = _load_rating_patterns()
+
+
+def _get_id_stopwords_full() -> set[str]:
     """Load full Indonesian stopwords from resources using existing loader."""
     try:
         return _load_id_stopwords() or set()
     except Exception:
         return set()
+
+
+def _ensure_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _strip_html(text: str) -> str:
+    return remove_tags(text)
+
+
+def _clean_preview(text: str) -> str:
+    t = case_normal(text)
+    t = replace_email(t, mode="remove")
+    t = replace_url(t, mode="remove")
+    t = remove_punctuation(t)
+    t = remove_stopwords(t)
+    t = remove_whitespace(t)
+    return t
+
+
+def _tokenize_words(text: str) -> List[str]:
+    return re.findall(r"[a-zA-Z]+", text.casefold())
+
+
+def _count_id_stopwords(tokens: Iterable[str]) -> int:
+    stopwords = _get_id_stopwords_full()
+    return sum(1 for token in tokens if token in stopwords)
+
+
+def _count_en_stopwords(tokens: Iterable[str]) -> int:
+    return sum(1 for token in tokens if token in ENGLISH_COMMON_WORDS)
+
+
+def _calc_non_alpha_ratio(text: str) -> float:
+    relevant = [ch for ch in text if not ch.isspace() and not ch.isdigit()]
+    if not relevant:
+        return 0.0
+    non_alpha = sum(1 for ch in relevant if not ch.isalpha())
+    return non_alpha / len(relevant)
+
+
+def _has_non_alpha_noise(text: str) -> bool:
+    if _extract_emojis(text):
+        return True
+    if _RATING_FRACTION_PATTERN.search(text):
+        return True
+    if "@" in text:
+        return True
+    if _REPEATED_SYMBOL_PATTERN.search(text):
+        return True
+    return False
+
+
+def _has_rating(text: str) -> bool:
+    processed = replace_rating(text)
+    if processed != text:
+        return True
+    for patt in _RATING_PATTERNS:
+        if patt.search(text):
+            return True
+    return False
+
+
+def _extract_urls(text: str) -> List[str]:
+    urls = re.findall(URL_PATTERN, text, flags=re.IGNORECASE)
+    urls_with_path = re.findall(URL_PATTERN_WITH_PATH, text, flags=re.IGNORECASE)
+    combined = []
+    combined.extend("".join(url) if isinstance(url, tuple) else url for url in urls)
+    combined.extend(url if isinstance(url, str) else "".join(url) for url in urls_with_path)
+    return [u for u in combined if u]
+
+
+def _extract_html_tags(text: str) -> List[str]:
+    return TAG_RE.findall(text)
+
+
+def _extract_emails(text: str) -> List[str]:
+    pattern = email_config.get("pattern", "")
+    if not pattern:
+        return []
+    return re.findall(pattern, text, flags=re.IGNORECASE)
+
+
+def _normalize_phone(potential_number: str) -> Optional[str]:
+    cleaned_number = re.sub(r'[-\s]', '', potential_number)
+    normalized_number: Optional[str] = None
+    if cleaned_number.startswith(('+62', '62')):
+        normalized_number = '0' + re.sub(r'^\+?62', '', cleaned_number)
+    elif cleaned_number.startswith('0'):
+        normalized_number = cleaned_number
+    if normalized_number and 10 <= len(normalized_number) <= 13:
+        return normalized_number
+    return None
+
+
+def _extract_phones(text: str) -> Dict[str, List[str]]:
+    pattern = phone_config.get("pattern", "")
+    raw_numbers: List[str] = []
+    normalized_numbers: List[str] = []
+
+    if pattern:
+        for m in re.finditer(pattern, text):
+            raw_value = m.group(0)
+            if raw_value not in raw_numbers:
+                raw_numbers.append(raw_value)
+            normalized = _normalize_phone(raw_value)
+            if normalized and normalized not in normalized_numbers:
+                normalized_numbers.append(normalized)
+
+    # Fallback extractor captures long digit sequences with separators (spaces/dashes)
+    fallback_pattern = re.compile(r"(?<!\w)(\+?\d[\d\s-]{6,}\d)(?!\d)")
+    for m in fallback_pattern.finditer(text):
+        raw_value = m.group(0)
+        trimmed_value = raw_value.strip()
+        if trimmed_value not in raw_numbers:
+            raw_numbers.append(trimmed_value)
+        normalized = _normalize_phone(trimmed_value)
+        if normalized and normalized not in normalized_numbers:
+            normalized_numbers.append(normalized)
+    return {"raw": raw_numbers, "normalized": normalized_numbers}
+
+
+def _extract_emojis(text: str) -> List[str]:
+    results: List[str] = []
+    if _EMOJI_PATTERN.pattern != r"$^":
+        results.extend(_EMOJI_PATTERN.findall(text))
+    if _emoji_list is not None:
+        try:
+            for item in _emoji_list(text):
+                emoji_char = item.get("emoji")
+                if emoji_char:
+                    results.append(emoji_char)
+        except Exception:
+            pass
+    if not results:
+        for char in text:
+            if char.isalnum() or char.isspace():
+                continue
+            if unicodedata.category(char) in {"So", "Sk"}:
+                results.append(char)
+    ordered_unique: List[str] = []
+    for emoji_char in results:
+        if emoji_char not in ordered_unique:
+            ordered_unique.append(emoji_char)
+    return ordered_unique
+
+
+def _pii_flag_from_text(text: str) -> bool:
+    email_result = replace_email(text, mode="replace")
+    phone_result = replace_phone(text, mode="replace")
+    return "[EMAIL]" in email_result or "[PHONE_NUMBER]" in phone_result
+
+
+def _build_flag_record(text: str, *, include_refined: bool, non_alpha_threshold: float) -> Dict[str, Any]:
+    stripped = _strip_html(text)
+    rating_flag = _has_rating(stripped)
+    pii_flag = _pii_flag_from_text(stripped)
+    non_alpha_ratio = _calc_non_alpha_ratio(stripped)
+    non_alpha_noise = non_alpha_ratio > non_alpha_threshold or _has_non_alpha_noise(stripped)
+    record: Dict[str, Any] = {
+        "original_text": text,
+        "rating_flag": rating_flag,
+        "pii_flag": pii_flag,
+        "non_alphabetical_flag": non_alpha_noise,
+        "refined_text": _clean_preview(stripped) if include_refined else None,
+    }
+    return record
+
+
+def _build_stats_record(text: str) -> Dict[str, Any]:
+    stripped = _strip_html(text)
+    tokens = _tokenize_words(stripped)
+    stopword_count = _count_id_stopwords(tokens) + _count_en_stopwords(tokens)
+    punctuation_removed = len(stripped) - len(remove_punctuation(stripped))
+    symbols_removed = len(stripped) - len(remove_digits(stripped))
+    emojis = _extract_emojis(stripped)
+    urls = _extract_urls(stripped)
+    html_tags = _extract_html_tags(text)
+    emails = _extract_emails(stripped)
+    phones = _extract_phones(stripped)
+    noise_types = [urls, html_tags, emails, phones["raw"], emojis]
+    noise_count = sum(1 for items in noise_types if items)
+    return {
+        "length": len(stripped),
+        "word_count": len(tokens),
+        "stopwords": stopword_count,
+        "punctuations": punctuation_removed,
+        "symbols": symbols_removed,
+        "emojis": len(emojis),
+        "noise_count": noise_count,
+        "urls": urls,
+        "html_tags": html_tags,
+        "emails": emails,
+        "phones": phones["raw"],
+        "phones_normalized": phones["normalized"],
+        "emoji_list": emojis,
+    }
+
+
+def _build_noise_record(text: str) -> Dict[str, List[str]]:
+    stripped = _strip_html(text)
+    urls = _extract_urls(stripped)
+    replace_url(stripped, mode="replace")
+    html_tags = _extract_html_tags(text)
+    emails = _extract_emails(stripped)
+    replace_email(stripped, mode="replace")
+    phones = _extract_phones(stripped)
+    replace_phone(stripped, mode="replace")
+    emojis = _extract_emojis(stripped)
+    remove_emoji(stripped, mode="remove")
+    return {
+        "urls": urls,
+        "html_tags": html_tags,
+        "emails": emails,
+        "phones": phones["raw"],
+        "phones_normalized": phones["normalized"],
+        "emojis": emojis,
+    }
+
+
+def _coerce_frame(data: Any, text_column: str = "text") -> Tuple[pd.DataFrame, str]:
+    if isinstance(data, pd.DataFrame):
+        frame = data.copy()
+        candidates = [text_column, "review_text", "product_text", "text"]
+        for candidate in candidates:
+            if candidate in frame.columns:
+                text_column = candidate
+                break
+        else:
+            raise KeyError(f"Column '{text_column}' not found in DataFrame")
+        frame[text_column] = frame[text_column].apply(_ensure_text)
+        return frame, text_column
+    if isinstance(data, pd.Series):
+        frame = data.to_frame(name=text_column)
+        frame[text_column] = frame[text_column].apply(_ensure_text)
+        return frame, text_column
+    if isinstance(data, str):
+        frame = pd.DataFrame({text_column: [_ensure_text(data)]})
+        return frame, text_column
+    if isinstance(data, Iterable):
+        frame = pd.DataFrame({text_column: [_ensure_text(item) for item in data]})
+        return frame, text_column
+    raise TypeError("Unsupported input type for text collection")
+
+
+def get_flags(
+    data: Any,
+    *,
+    include_refined: bool = False,
+    non_alpha_threshold: float = DEFAULT_NON_ALPHA_THRESHOLD,
+    merge_input: bool = True,
+    text_column: str = "text",
+) -> pd.DataFrame:
+    frame, resolved_column = _coerce_frame(data, text_column)
+    texts = frame[resolved_column]
+    records = [
+        _build_flag_record(text, include_refined=include_refined, non_alpha_threshold=non_alpha_threshold)
+        for text in texts
+    ]
+    df = pd.DataFrame(records)
+    df.index = texts.index
+    if merge_input:
+        if "original_text" in df.columns:
+            df = df.drop(columns=["original_text"])
+        return pd.concat([frame, df], axis=1)
+    return df
+
+
+def get_stats(
+    data: Any,
+    *,
+    merge_input: bool = True,
+    as_dict: bool = True,
+    text_column: str = "text",
+) -> pd.DataFrame:
+    frame, resolved_column = _coerce_frame(data, text_column)
+    texts = frame[resolved_column]
+    records = [_build_stats_record(text) for text in texts]
+    if as_dict:
+        stats_series = pd.Series(records, index=texts.index, name="stats")
+        result = frame.copy() if merge_input else pd.DataFrame(index=texts.index)
+        result["stats"] = stats_series
+        return result
+    df = pd.DataFrame(records, index=texts.index)
+    return pd.concat([frame, df], axis=1) if merge_input else df
+
+
+def noise_detect(
+    data: Any,
+    *,
+    merge_input: bool = True,
+    include_normalized: bool = True,
+    text_column: str = "text",
+) -> pd.DataFrame:
+    frame, resolved_column = _coerce_frame(data, text_column)
+    texts = frame[resolved_column]
+    records = [_build_noise_record(text) for text in texts]
+    if not include_normalized:
+        for record in records:
+            record.pop("phones_normalized", None)
+    noise_series = pd.Series(records, index=texts.index, name="detect_noise")
+    if merge_input:
+        result = frame.copy()
+        result["detect_noise"] = noise_series
+        return result
+    return noise_series.to_frame()
 
 
 @dataclass
@@ -79,10 +454,6 @@ class CartBoard:
     def non_alphabetical_flag(self) -> bool:
         return self._flags["non_alphabetical_flag"]
 
-    @property
-    def lang_mix_flag(self) -> bool:
-        return self._flags["lang_mix_flag"]
-
     def to_dict(self) -> Dict[str, Optional[object]]:
         return {
             "original_text": self.original_text,
@@ -90,53 +461,21 @@ class CartBoard:
             "rating": self.rating,
             "pii_flag": self.pii_flag,
             "non_alphabetical_flag": self.non_alphabetical_flag,
-            "lang_mix_flag": self.lang_mix_flag,
         }
 
     # --------------- internals ---------------
     def _clean_text(self, text: str) -> str:
-        """Pipeline: lower → remove email → remove url → remove punct → stopwords → whitespace.
-
-        Note: We remove PII here because we only need a cleaned preview for triage;
-        downstream masking/cleaning still happens in the main pipeline.
-        """
-        t = text
-        t = case_normal(t)
-        # Remove emails and URLs
-        t = replace_email(t, mode="remove")
-        t = replace_url(t, mode="remove")
-        # Remove punctuation and stopwords
-        t = remove_punctuation(t)
-        t = remove_stopwords(t)
-        t = remove_whitespace(t)
-        return t
+        return _clean_preview(text)
 
     def _generate_flags(self, text: str) -> Dict[str, bool]:
-        # PII flag using regex patterns from config (email, phone, NIK, address)
-        pii = False
-        for cfg in (email_config, phone_config, NIK_config, address_config):
-            patt = (cfg or {}).get("pattern") or (cfg.get("trigger_pattern", {}).get("pattern") if cfg else None)
-            if patt and re.search(patt, text, flags=re.IGNORECASE):
-                pii = True
-                break
-
-        # Non-alphabetical flag: contains anything other than letters/space
-        non_alpha = bool(re.search(r"[^a-zA-Z\s]", text))
-
-        # Heuristik campur bahasa sederhana berfokus Indonesia:
-        # Jika teks mengandung sangat sedikit kata umum Indonesia dibanding total token,
-        # kita tandai sebagai campur (indikasi dominasi non-Indonesia). Tidak ada kamus Inggris eksplisit.
-        tokens = re.findall(r"[a-zA-Z]+", text.lower())
-        if not tokens:
-            lang_mix = False
-        else:
-            id_stop = _get_id_stopwords_full()
-            id_hits = sum(1 for tok in tokens if tok in id_stop)
-            # Jika proporsi kata umum Indonesia sangat rendah, anggap campur bahasa
-            lang_mix = (id_hits / max(1, len(tokens))) < 0.05
-
+        df = get_flags(
+            [text],
+            include_refined=False,
+            merge_input=False,
+            non_alpha_threshold=DEFAULT_NON_ALPHA_THRESHOLD,
+        )
+        record = df.iloc[0]
         return {
-            "pii_flag": pii,
-            "non_alphabetical_flag": non_alpha,
-            "lang_mix_flag": lang_mix,
+            "pii_flag": bool(record["pii_flag"]),
+            "non_alphabetical_flag": bool(record["non_alphabetical_flag"]),
         }

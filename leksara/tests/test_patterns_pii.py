@@ -9,6 +9,8 @@ from leksara.functions.patterns.pii import (
 
 EMAIL_PLACEHOLDER = "[EMAIL]"
 ADDRESS_PLACEHOLDER = "[ADDRESS]"
+PHONE_PLACEHOLDER = "[PHONE]"
+ID_PLACEHOLDER = "[ID]"
 EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", flags=re.IGNORECASE) # email is case insensitive
 
 @pytest.mark.parametrize("text", [
