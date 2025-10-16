@@ -27,15 +27,38 @@ def _normalize_rating_config(raw_config):
     return {}, [], [], []
 
 
-def _load_rating_config(config_path: Path):
-    with open(config_path, 'r', encoding='utf-8') as f:
+def _load_rating_config(config_path: Path | None = None):
+    """Muat konfigurasi rating dan kembalikan bentuk ternormalisasi."""
+    target_path = config_path
+    if target_path is None:
+        target_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_rules.json"
+
+    with open(target_path, 'r', encoding='utf-8') as f:
         raw = json.load(f)
+
     return _normalize_rating_config(raw)
 
 
 try:
-    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_patterns.json"
-    _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(config_path)
+    base_regex_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns"
+    candidate_paths = [
+        base_regex_path / "rating_patterns.json",
+        base_regex_path / "rating_rules.json",
+    ]
+
+    last_error: Exception | None = None
+    for candidate in candidate_paths:
+        try:
+            _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(candidate)
+            break
+        except FileNotFoundError as err:
+            last_error = err
+            continue
+    else:
+        if last_error:
+            raise last_error
+        raise FileNotFoundError("Rating config tidak ditemukan.")
+
     _SORTED_RULES = sorted(rules, key=lambda r: r.get('priority', 0), reverse=True)
     _BLACKLIST_PATTERNS = [re.compile(item['pattern'], re.IGNORECASE | re.MULTILINE) for item in blacklist]
 except Exception as e:
@@ -49,6 +72,7 @@ try:
     dict_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "acronym_dict.json"
     rules_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "dictionary_rules.json"
     contractions_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "contractions_dict.json" 
+    slangs_path = Path(__file__).resolve().parent.parent.parent / "resources" / "dictionary" / "slangs_dict.json" 
     with open(dict_path, 'r', encoding='utf-8') as f:
         _ACRONYM_DICT = json.load(f)
     with open(rules_path, 'r', encoding='utf-8') as f:
@@ -56,6 +80,8 @@ try:
         _CONFLICT_RULES = {rule["token"]: rule for rule in rules_data}
     with open(contractions_path, 'r', encoding='utf-8') as f:
         _CONTRACTIONS_DICT = json.load(f)
+    with open(slangs_path, 'r', encoding='utf-8') as f:
+        _SLANGS_DICT = json.load(f)
 except Exception as e:
     print(f"Gagal memuat file konfigurasi akronim: {e}")
     _ACRONYM_DICT = {}
@@ -132,13 +158,16 @@ def replace_rating(text: str) -> str:
             elif rule_type == 'emoji_or_mult':
                 mult_group_idx = rule.get('mult_group')
                 if mult_group_idx and mult_group_idx <= len(match.groups()) and match.group(mult_group_idx):
-                    raw_value = match.group(mult_group_idx)
+                    try:
+                        rating = float(match.group(mult_group_idx))
+                        return str(round(rating, 2))
+                    except Exception:
+                        return matched_text
                 else:
-                    count = 0
-                    s = match.group(0)
-                    for e in rule.get('emojis', []):
-                        count += s.count(e)
-                    raw_value = count
+                    count = sum(matched_text.count(e) for e in rule.get('emojis', []))
+                    if count > 0:
+                        return str(round(count, 2))
+                    return matched_text
 
             if raw_value is None: return matched_text
 
@@ -186,7 +215,7 @@ def replace_rating(text: str) -> str:
                         leading = re.match(r'^\s*', matched_text).group(0)
                         trailing = re.search(r'\s*$', matched_text).group(0)
                         return f"{leading}{ph}{trailing}"
-                
+
                 leading = re.match(r'^\s*', matched_text).group(0)
                 trailing = re.search(r'\s*$', matched_text).group(0)
                 return f"{leading}{ph}{trailing}"
@@ -275,8 +304,8 @@ def normalize_slangs(text: str, mode: str = "replace") -> str:
         replacement = None
 
         # Aturan konflik (jika ada di rules file)
-        if token in _SLANG_CONFLICT_RULES:
-            conflict = _SLANG_CONFLICT_RULES[token]
+        if token in _CONFLICT_RULES:
+            conflict = _CONFLICT_RULES[token]
             for rule in conflict.get("rules", []):
                 if re.search(rule.get("context_pattern", ""), text, re.IGNORECASE):
                     replacement = rule.get("preferred")
