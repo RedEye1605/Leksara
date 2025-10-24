@@ -1,7 +1,6 @@
 """Advanced review mining: rating, elongation, acronym, slang, contraction, normalization."""
 
 import re
-import pandas as pd
 import json
 from pathlib import Path
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
@@ -42,17 +41,21 @@ def _load_rating_config(config_path: Path | None = None):
 try:
     base_regex_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns"
     candidate_paths = [
-        base_regex_path / "rating_patterns.json",
         base_regex_path / "rating_rules.json",
+        base_regex_path / "rating_patterns.json",
     ]
 
     last_error: Exception | None = None
     for candidate in candidate_paths:
         try:
             _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(candidate)
+            if not rules or not isinstance(rules[0], dict) or 'type' not in rules[0]:
+                raise ValueError("rating rules missing metadata; trying fallback config")
             break
         except FileNotFoundError as err:
             last_error = err
+            continue
+        except ValueError:
             continue
     else:
         if last_error:
@@ -91,6 +94,12 @@ except Exception as e:
 def replace_rating(text: str) -> str:
     if not isinstance(text, str) or not text:
         raise TypeError(f"Input harus berupa string, tetapi menerima tipe {type(text).__name__}")
+
+    def format_rating(value: float) -> str:
+        base = f"{value:.2f}".rstrip("0").rstrip(".")
+        if "." not in base:
+            base = f"{value:.1f}"
+        return base
 
     flag_pattern = 0
     for pattern in _FLAGS:
@@ -160,13 +169,13 @@ def replace_rating(text: str) -> str:
                 if mult_group_idx and mult_group_idx <= len(match.groups()) and match.group(mult_group_idx):
                     try:
                         rating = float(match.group(mult_group_idx))
-                        return str(round(rating, 2))
+                        return format_rating(rating)
                     except Exception:
                         return matched_text
                 else:
                     count = sum(matched_text.count(e) for e in rule.get('emojis', []))
                     if count > 0:
-                        return str(round(count, 2))
+                        return format_rating(float(count))
                     return matched_text
 
             if raw_value is None: return matched_text
@@ -174,9 +183,11 @@ def replace_rating(text: str) -> str:
             str_value = str(raw_value)
             for old, new in rule.get('postprocess', {}).get('replace', {}).items():
                 str_value = str_value.replace(old, new)
+            str_value = str_value.replace('½', '.5').replace('1/2', '.5').strip()
+            if not str_value:
+                return matched_text
 
             try:
-                str_value = str_value.replace('½', '.5').replace('1/2', '.5')
                 rating = float(str_value)
 
                 if 'scale_denominator_group' in rule:
@@ -193,7 +204,7 @@ def replace_rating(text: str) -> str:
                                 scale_str = None
 
                     if scale_str is not None:
-                        scale = float(scale_str.replace(',', '.'))
+                        scale = float(scale_str.replace(',', '.').strip())
                         if scale != 5.0 and scale > 0:
                             rating = (rating / scale) * 5.0
 
@@ -203,8 +214,7 @@ def replace_rating(text: str) -> str:
                 if max_val is not None and rating > max_val:
                     rating = max_val
 
-
-                final_string = str(round(rating, 2))
+                final_string = format_rating(rating)
                 ph = make_placeholder(final_string)
 
                 if "trigger_pattern" in rule and rule.get("pattern"):

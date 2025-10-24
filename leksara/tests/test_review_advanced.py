@@ -50,14 +50,14 @@ def test_shorten_elongation_type_error_on_non_string():
 @pytest.mark.parametrize(
     "text, expected",
     [
-        ("Rating: 4,5/5 mantap", "Rating: 4,5/5 mantap"),
-        ("Score: 8/10", "Score: 8/10"),
-        ("kasih lima bintang", "kasih lima bintang"),
-        ("4 of 5 for design", "4 of 5 for design"),
-        ("rating: 5", "rating: 5"),
-        ("3 stars overall", "3 stars overall"),
-        ("Kualitasnya ⭐⭐⭐⭐ top!", "Kualitasnya ⭐⭐⭐⭐ top!"),
-        ("Keren banget ⭐ x5, mantap!", "Keren banget ⭐ x5, mantap!"),
+    ("Rating: 4,5/5 mantap", "Rating: 4.5 mantap"),
+    ("Score: 8/10", "Score: 4.0"),
+    ("kasih lima bintang", "kasih 5.0"),
+    ("4 of 5 for design", "4.0 for design"),
+    ("rating: 5", "5.0"),
+    ("3 stars overall", "3.0 overall"),
+    ("Kualitasnya ⭐⭐⭐⭐ top!", "Kualitasnya 4.0 top!"),
+    ("Keren banget ⭐ x5, mantap!", "Keren banget 5.0, mantap!"),
     ],
 )
 def test_replace_rating_positive_cases(text, expected):
