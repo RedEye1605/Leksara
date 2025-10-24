@@ -13,11 +13,9 @@ Example
 >>> board = CartBoard(text, rating=5)
 >>> result = board.to_dict()
 >>> sorted(result.keys())
-['non_alphabetical_flag', 'original_text', 'pii_flag', 'rating', 'refined_text']
+['non_alphabetical_flag', 'original_text', 'pii_flag', 'rating']
 >>> result['pii_flag']  # email detected
 True
->>> result['refined_text']  # cleaned text
-'barangnya mantulll  visit'
 """
 
 from __future__ import annotations
@@ -40,13 +38,10 @@ from ..functions.cleaner.basic import (
     TAG_RE,
     URL_PATTERN,
     URL_PATTERN_WITH_PATH,
-    case_normal,
     remove_digits,
     remove_emoji,
     remove_punctuation,
-    remove_stopwords,
     remove_tags,
-    remove_whitespace,
     replace_url,
     _load_id_stopwords,
     emoji_dictionary,
@@ -128,16 +123,6 @@ def _ensure_text(value: Any) -> str:
 
 def _strip_html(text: str) -> str:
     return remove_tags(text)
-
-
-def _clean_preview(text: str) -> str:
-    t = case_normal(text)
-    t = replace_email(t, mode="remove")
-    t = replace_url(t, mode="remove")
-    t = remove_punctuation(t)
-    t = remove_stopwords(t)
-    t = remove_whitespace(t)
-    return t
 
 
 def _tokenize_words(text: str) -> List[str]:
@@ -273,7 +258,7 @@ def _pii_flag_from_text(text: str) -> bool:
     return "[EMAIL]" in email_result or "[PHONE_NUMBER]" in phone_result
 
 
-def _build_flag_record(text: str, *, include_refined: bool, non_alpha_threshold: float) -> Dict[str, Any]:
+def _build_flag_record(text: str, *, non_alpha_threshold: float) -> Dict[str, Any]:
     stripped = _strip_html(text)
     rating_flag = _has_rating(stripped)
     pii_flag = _pii_flag_from_text(stripped)
@@ -284,7 +269,6 @@ def _build_flag_record(text: str, *, include_refined: bool, non_alpha_threshold:
         "rating_flag": rating_flag,
         "pii_flag": pii_flag,
         "non_alphabetical_flag": non_alpha_noise,
-        "refined_text": _clean_preview(stripped) if include_refined else None,
     }
     return record
 
@@ -368,7 +352,6 @@ def _coerce_frame(data: Any, text_column: str = "text") -> Tuple[pd.DataFrame, s
 def get_flags(
     data: Any,
     *,
-    include_refined: bool = False,
     non_alpha_threshold: float = DEFAULT_NON_ALPHA_THRESHOLD,
     merge_input: bool = True,
     text_column: str = "text",
@@ -376,7 +359,7 @@ def get_flags(
     frame, resolved_column = _coerce_frame(data, text_column)
     texts = frame[resolved_column]
     records = [
-        _build_flag_record(text, include_refined=include_refined, non_alpha_threshold=non_alpha_threshold)
+        _build_flag_record(text, non_alpha_threshold=non_alpha_threshold)
         for text in texts
     ]
     df = pd.DataFrame(records)
@@ -438,14 +421,9 @@ class CartBoard:
             raise TypeError(f"raw_text must be str, got {type(raw_text).__name__}")
         self.original_text = raw_text
         self.rating = rating
-        self._refined_text = self._clean_text(raw_text)
         self._flags = self._generate_flags(raw_text)
 
     # --------------- public API ---------------
-    @property
-    def refined_text(self) -> str:
-        return self._refined_text
-
     @property
     def pii_flag(self) -> bool:
         return self._flags["pii_flag"]
@@ -457,20 +435,15 @@ class CartBoard:
     def to_dict(self) -> Dict[str, Optional[object]]:
         return {
             "original_text": self.original_text,
-            "refined_text": self.refined_text,
             "rating": self.rating,
             "pii_flag": self.pii_flag,
             "non_alphabetical_flag": self.non_alphabetical_flag,
         }
 
     # --------------- internals ---------------
-    def _clean_text(self, text: str) -> str:
-        return _clean_preview(text)
-
     def _generate_flags(self, text: str) -> Dict[str, bool]:
         df = get_flags(
             [text],
-            include_refined=False,
             merge_input=False,
             non_alpha_threshold=DEFAULT_NON_ALPHA_THRESHOLD,
         )

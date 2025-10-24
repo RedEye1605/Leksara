@@ -1,6 +1,7 @@
 import pandas as pd
+import pytest
 
-from leksara.frames.cartboard import get_flags, get_stats, noise_detect
+from leksara.frames.cartboard import CartBoard, get_flags, get_stats, noise_detect
 
 
 def test_get_flags_dataframe_matches_spec():
@@ -23,7 +24,6 @@ def test_get_flags_dataframe_matches_spec():
         "rating_flag",
         "pii_flag",
         "non_alphabetical_flag",
-        "refined_text",
     ]
 
     row1, row2 = result.iloc[0], result.iloc[1]
@@ -31,24 +31,22 @@ def test_get_flags_dataframe_matches_spec():
     assert bool(row1["rating_flag"])
     assert not bool(row1["pii_flag"])
     assert bool(row1["non_alphabetical_flag"])
-    assert pd.isna(row1["refined_text"])
 
     assert bool(row2["pii_flag"])
     assert not bool(row2["non_alphabetical_flag"])
 
 
-def test_get_flags_include_refined_produces_text():
+def test_get_flags_series_without_merge_returns_original():
     series = pd.Series([
         "Ini dan the best service, email saya user@example.com!!!",
     ])
 
-    result = get_flags(series, include_refined=True, merge_input=False)
+    result = get_flags(series, merge_input=False)
     row = result.iloc[0]
 
     assert bool(row["pii_flag"])
     assert bool(row["non_alphabetical_flag"])
-    assert "@" not in row["refined_text"]
-    assert row["refined_text"] == row["refined_text"].lower()
+    assert row["original_text"].startswith("Ini dan the best service")
 
 
 def test_get_stats_and_noise_detect_dict_outputs():
@@ -73,3 +71,36 @@ def test_get_stats_and_noise_detect_dict_outputs():
     assert "0812-3456-7890" in noise_payload["phones"]
     assert "+62 812 3456 7890" in noise_payload["phones"]
     assert noise_payload["phones_normalized"][0].startswith("0812")
+
+def test_get_flags_from_string_input_without_merge():
+    result = get_flags("Rating 4/5 mantap banget!", merge_input=False)
+    assert set(result.columns) == {
+        "original_text",
+        "rating_flag",
+        "pii_flag",
+        "non_alphabetical_flag",
+    }
+    row = result.iloc[0]
+    assert row["original_text"] == "Rating 4/5 mantap banget!"
+    assert bool(row["rating_flag"]) is True
+
+
+def test_noise_detect_without_merge_excludes_normalized_when_requested():
+    noise = noise_detect(["Hubungi 081234567890"], merge_input=False, include_normalized=False)
+    payload = noise.iloc[0]["detect_noise"]
+    assert "phones" in payload and payload["phones"]
+    assert "phones_normalized" not in payload
+
+
+def test_cartboard_flags_and_metadata():
+    text = "Email saya user@example.com, rating 5/5!"
+    board = CartBoard(text, rating=4.5)
+    data = board.to_dict()
+    assert data["rating"] == 4.5
+    assert data["pii_flag"] is True
+    assert "refined_text" not in data
+
+
+def test_cartboard_requires_string_input():
+    with pytest.raises(TypeError):
+        CartBoard(123)  # type: ignore[arg-type]
