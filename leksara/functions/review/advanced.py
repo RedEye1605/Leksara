@@ -27,17 +27,38 @@ def _normalize_rating_config(raw_config):
     return {}, [], [], []
 
 
-def _load_rating_config(config_path: Path):
-try:
-    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_rules.json"
-    with open(config_path, 'r', encoding='utf-8') as f:
+def _load_rating_config(config_path: Path | None = None):
+    """Muat konfigurasi rating dan kembalikan bentuk ternormalisasi."""
+    target_path = config_path
+    if target_path is None:
+        target_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_rules.json"
+
+    with open(target_path, 'r', encoding='utf-8') as f:
         raw = json.load(f)
+
     return _normalize_rating_config(raw)
 
 
 try:
-    config_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns" / "rating_patterns.json"
-    _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(config_path)
+    base_regex_path = Path(__file__).resolve().parent.parent.parent / "resources" / "regex_patterns"
+    candidate_paths = [
+        base_regex_path / "rating_patterns.json",
+        base_regex_path / "rating_rules.json",
+    ]
+
+    last_error: Exception | None = None
+    for candidate in candidate_paths:
+        try:
+            _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(candidate)
+            break
+        except FileNotFoundError as err:
+            last_error = err
+            continue
+    else:
+        if last_error:
+            raise last_error
+        raise FileNotFoundError("Rating config tidak ditemukan.")
+
     _SORTED_RULES = sorted(rules, key=lambda r: r.get('priority', 0), reverse=True)
     _BLACKLIST_PATTERNS = [re.compile(item['pattern'], re.IGNORECASE | re.MULTILINE) for item in blacklist]
 except Exception as e:

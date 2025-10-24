@@ -74,12 +74,21 @@ def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     if not re.search(trigger_pattern, text, flags=re.IGNORECASE):
         return text
 
+    valid_component_keys = {
+        cid.replace("pii_addr_", ""): cdata for cid, cdata in address_components.items()
+    }
+
+    if kwargs:
+        invalid_keys = [key for key in kwargs if key not in valid_component_keys]
+        if invalid_keys:
+            invalid_list = ", ".join(sorted(invalid_keys))
+            raise KeyError(f"Unknown address component(s): {invalid_list}")
+
     if not kwargs:
         active_components = list(address_components.values())
     else:
         active_components = []
-        for cid, cdata in address_components.items():
-            cname = cid.replace("pii_addr_", "")
+        for cname, cdata in valid_component_keys.items():
             if kwargs.get(cname, False):
                 active_components.append(cdata)
 

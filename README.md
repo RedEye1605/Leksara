@@ -3,159 +3,119 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/leksara)
 ![PyPI - License](https://img.shields.io/pypi/l/leksara)
 
-## Description
-**Leksara** is a Python toolkit designed to streamline the preprocessing and cleaning of Indonesian text data for Data Scientists and Machine Learning Engineers. It focuses on handling messy and noisy Indonesian text from various domains such as e-commerce reviews, social media posts, and chat conversations. The tool helps clean text by handling Indonesian-specific challenges like slang words, regional expressions, informal abbreviations, and mixed language content, while also providing standard cleaning features like punctuation and stopword removal. This makes it an essential tool for Indonesian text analysis and machine learning model preparation.
+Leksara is an Indonesian-language text preparation toolkit for data teams who need production-ready cleaning, masking, and normalization pipelines. The library bundles linguistic resources, a preset-driven orchestration layer, and modular helpers so you can audit raw text, remediate sensitive content, and standardize noisy reviews without rebuilding the stack for every project.
 
-## Key Features
-- **Basic Cleaning Pipeline**: A straightforward pipeline to clean raw text data by handling common tasks like punctuation removal, casing normalization, and stopword filtering.
-- **Advanced Customization**: Users can create custom cleaning pipelines tailored to specific datasets, including support for regex pattern matching, stemming, and custom dictionaries.
-- **Preset Options**: Includes predefined cleaning presets for various domains like e-commerce, allowing for one-click cleaning.
-- **Slang and Informal Text Handling**: Users can define their own custom dictionaries for slang terms and informal language, especially useful for Indonesian text.
+---
 
-## Usage Examples
+## Feature Highlights
 
-### Basic Usage: Basic Cleaning Pipeline
-This example demonstrates how to clean e-commerce product reviews using a pre-built preset.
+- **CartBoard review intake** – Inspect raw datasets from chatbots or marketplaces, generate column-level flags (PII, non-alphabetical noise, ratings), and capture metadata for monitoring.
+- **Composable cleaning utilities** – `leksara.function` re-exports the building blocks (HTML stripping, casing, stopwords, punctuation, emoji, numeric cleanup) for ad-hoc preprocessing.
+- **PII masking and redaction** – Regex-backed detectors for Indonesian phone numbers, emails, addresses, and national IDs with configurable replacement modes and conflict handling.
+- **Review-focused normalization** – Slang and acronym expansion, contraction repair, elongated text trimming, rating extraction, stemming/normalization tuned for Bahasa Indonesia.
+- **ReviewChain orchestrator** – Run pipelines functionally with `leksara(...)` or via the `ReviewChain` class, mix presets with custom steps, and benchmark per-stage performance.
+- **Resource-driven customization** – Ship your own dictionaries and regex rules or extend the bundled JSON/CSV files to adapt the cleaner to new verticals.
+
+Deep dives for each module live in `docs/features.md` together with API tables, dependencies, and ready-to-run recipes.
+
+---
+
+## Quickstart
+
+### 1. Install
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install leksara
+```
+
+Optional extras and troubleshooting tips are listed in `docs/installation.md`.
+
+### 2. Clean a review column in-place
 
 ```python
-from Leksara  import Leksara 
+import pandas as pd
+from leksara import leksara
 
-df['cleaned_review'] = Leksara(df['review_text'], preset='ecommerce_review')
-print(df[['review_id', 'cleaned_review']])
+df = pd.DataFrame(
+    {
+        "review_id": [101, 102],
+        "review_text": [
+            "<p>Barangnya mantul!!! Email saya user@mail.id, WA 0812-3456-7890</p>",
+            "Kualitasnya ⭐⭐⭐⭐, pengiriman 4/5. Hubungi +62 812 8888 7777",
+        ],
+    }
+)
+
+# Apply the ecommerce review preset
+df["clean_text"] = leksara(df["review_text"], preset="ecommerce_review")
+print(df[["review_id", "clean_text"]])
 ```
 
-**Input Data (df):**
-
-| review_id | review_text                            |
-|-----------|----------------------------------------|
-| 1         | `<p>brgnya ORI & pengiriman cepat. Mantulll 👍</p>` |
-| 2         | `Kualitasnya krg bgs, ga sesuai ekspektasi...` |
-
-**Output Data:**
-
-| review_id | cleaned_review                 |
-|-----------|---------------------------------|
-| 1         | `barang nya original pengiriman cepat mantap` |
-| 2         | `kualitasnya kurang bagus tidak sesuai ekspektasi` |
-
-### Advanced Usage: Custom Cleaning Pipeline
-Customize the pipeline to mask phone numbers and normalize whitespace in chat logs.
+### 3. Audit raw text with CartBoard
 
 ```python
-from Leksara import Leksara
-from Leksara.functions import to_lowercase, normalize_whitespace
-from Leksara.patterns import MASK_PHONE_NUMBER
+from leksara.frames.cartboard import get_flags, get_stats
 
-custom_pipeline = {
-    'patterns': [MASK_PHONE_NUMBER],
-    'functions': [to_lowercase, normalize_whitespace]
-}
+flags = get_flags(df, text_column="review_text")
+stats = get_stats(df, text_column="review_text")
 
-df['safe_message'] = Leksara(df['chat_message'], pipeline=custom_pipeline)
-print(df[['chat_id', 'safe_message']])
+print(flags[["review_id", "pii_flag", "rating_flag", "non_alphabetical_flag"]])
+print(stats.iloc[0]["stats"])  # nested histogram of noise sources
 ```
 
-**Input Data (df):**
+### 4. Compose a tailored pipeline
 
-| chat_id | chat_message                           |
-|---------|----------------------------------------|
-| 101     | `Hi kak, pesanan saya INV/123 blm sampai. No HP saya 081234567890` |
-| 102     | `Tolong dibantu ya sis, thanks`        |
+```python
+from leksara import ReviewChain
+from leksara.function import (
+    case_normal,
+    remove_punctuation,
+    remove_stopwords,
+    replace_email,
+    replace_phone,
+)
 
-**Output Data:**
+chain = ReviewChain.from_steps(
+    patterns=[(replace_phone, {"mode": "replace"}), (replace_email, {"mode": "replace"})],
+    functions=[case_normal, remove_stopwords, remove_punctuation],
+)
 
-| chat_id | safe_message                           |
-|---------|----------------------------------------|
-| 101     | `hi kak, pesanan saya inv/123 blm sampai. no hp saya [PHONE_NUMBER]` |
-| 102     | `tolong dibantu ya sis, thanks`        |
-
-## Goals & Objectives
-- Provide an intuitive and adaptable cleaning tool for Indonesian text, focusing on domains like e-commerce.
-- Enable Data Scientists and ML Engineers to clean and preprocess text with minimal effort.
-- Allow for deep customization through configuration options and the use of custom dictionaries.
-
-## Success Metrics
-- **On-time Delivery**: Targeted release by October 15, 2025.
-- **Processing Speed**: Clean a 10,000-row Pandas Series in under 5 seconds.
-- **Cleaning Accuracy**: Achieve over 95% accuracy for core cleaning functions.
-
-## Folder Structure
-Below is the recommended folder structure for organizing the project:
-```
-[Leksara]/
-├── pyproject.toml                  # packaging & deps (nltk, dll)
-├── requirements.txt                # runtime deps (nltk, pandas, dll)
-├── README.md                       # overview & usage
-├── leksara/                        # package utama
-│   ├── __init__.py                 # public API surface
-│   ├── version.py                  # versi paket
-│   ├── core/
-│   │   ├── chain.py                # pipeline/CLI entry (sesuai pyproject scripts)
-│   │   ├── logging.py              # util logging/benchmark
-│   │   └── presets.py              # preset pipeline
-│   ├── frames/
-│   │   └── cartboard.py            # helpers untuk data frame
-│   ├── functions/                  # modul granular
-│   │   ├── __init__.py
-│   │   ├── cleaner/
-│   │   │   ├── __init__.py
-│   │   │   └── basic.py            # remove_tags, case_normal, remove_stopwords, dll.
-│   │   ├── patterns/
-│   │   │   ├── __init__.py
-│   │   │   └── pii.py              # masker PII (email/telepon, dll.)
-│   │   └── review/
-│   │       ├── __init__.py
-│   │       └── advanced.py         # fungsi review lanjutan
-│   ├── resources/                  # data pendukung (dibundel)
-│   │   ├── acronyms.csv
-│   │   ├── contractions.json
-│   │   ├── slang_dict.json
-│   │   └── stopwords/
-│   │       └── id.txt              # stopwords Indonesia (tambahan/abbr)
-│   ├── tests/
-│   │   ├── test_chain.py
-│   │   ├── test_cleaner_basic.py
-│   │   ├── test_patterns_pii.py
-│   │   └── test_review_advanced.py
-│   └── utils/
-│       ├── lang.py
-│       ├── regexes.py
-│       ├── text.py                 # text helpers
-│       └── whitelist.py
-└── notebooks/
-    └── leksara_quickstart.ipynb    # quickstart & demo
+cleaned, metrics = chain.transform(df["review_text"], benchmark=True)
 ```
 
-## Milestones
+---
 
-| Sprint | Dates                | Goal                                           |
-|--------|----------------------|------------------------------------------------|
-| 1      | Aug 18 – Aug 22      | Project Kickoff, Discovery, Set up repository |
-| 2      | Aug 22 – Aug 29      | Build Core Cleaning Engine                    |
-| 3      | Aug 29 – Sep 5       | Develop Configurable Features                 |
-| 4      | Sep 5 – Sep 12       | Implement Advanced Customization              |
-| 5      | Sep 12 – Sep 19      | Refine API                                    |
-| 6      | Sep 19 – Sep 26      | Optimize System                               |
-| 7      | Sep 26 – Oct 3       | Finalize Documentation                        |
-| 8      | Oct 3 – Oct 10       | Prepare for Launch                            |
+## Documentation Map
 
-## Requirements
-- Python 3.x
-- Pandas
+| Topic | When to read | Location |
+| --- | --- | --- |
+| Installation & environment | You are provisioning a workstation or CI agent | `docs/installation.md` |
+| Feature deep dives | You need behavioral details, configuration knobs, or per-feature dependencies | `docs/features.md` |
+| Public API reference | You want signatures, argument descriptions, and return payload formats | `docs/api.md` |
+| Worked examples | You prefer copy/paste recipes for notebooks or pipelines | `docs/examples.md` |
+| Dependency matrix | You must vet optional packages or align with enterprise policies | `docs/dependencies.md` |
+| Contributing | You plan to submit patches, run tests, or build docs | `docs/contributing.md` |
 
-### Install
-```bash
-pip install Leksara
-```
+---
 
-## Contributors
-- **Vivian & Zahra** – Document Owners
-- **Salsa** – UI/UX Designer
-- **Aufi, Althaf, Rhendy, Adit** – Data Science Team
-- **Alya, Vivin** – Data Analyst Team
+## How Leksara Fits Together
 
-For more details on the features and usage, refer to the official documentation linked above.
+- **Pipelines** – `leksara(...)` is a convenience wrapper around `ReviewChain`; both accept raw sequences (list/Series) and return cleaned text plus optional benchmarking details.
+- **Frames layer** – `CartBoard` and friends operate on review tables, deriving flags, statistics, and noise diagnostics suitable for dashboards.
+- **Functions layer** – The `leksara.function` module mirrors the implementation modules under `leksara/functions` so you can cherry-pick individual cleaners without touching internals.
+- **Resources** – Regex rules and dictionaries stored under `leksara/resources/` drive PII detection, slang resolution, and whitelist protection. Update these files to specialise the toolkit.
+- **Logging & benchmarking** – `leksara.core.logging` ships opt-in helpers to emit step-level logs, while `benchmark=True` collects timing metadata for throughput tuning.
 
-## Links
-- [UI Design](https://www.figma.com/proto/ATkL3Omdc2ZdT7ppldx2Br/Laplace-Project?node-id=41-19&t=OIOqDyu4cKp3Q90P-1)
-- [Product Design and Mockups](https://www.figma.com/proto/ATkL3Omdc2ZdT7ppldx2Br/Laplace-Project?node-id=41-19&t=OIOqDyu4cKp3Q90P-1)
+Architectural notes, data contracts, and extension points for each layer are captured in `docs/features.md`.
+
+---
+
+## Contributing & Support
+
+- Read `docs/contributing.md` before opening a pull request. It covers environment setup, style, testing, and documentation requirements.
+- File issues on GitHub with reproducible examples; include the preset, optional dependencies, and OS details when reporting pipeline differences.
+- Commercial or large-scale users should build automated smoke tests around `ReviewChain` to detect upstream dictionary or regex changes.
+
+Leksara is licensed under the terms specified in `LICENSE`.
