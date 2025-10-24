@@ -74,33 +74,39 @@ def replace_address(text: str, mode: str = "remove", **kwargs) -> str:
     if not re.search(trigger_pattern, text, flags=re.IGNORECASE):
         return text
 
-    valid_component_keys = {
-        cid.replace("pii_addr_", ""): cdata for cid, cdata in address_components.items()
+    component_keys = list(address_components.keys())
+    normalized_key_map = {
+        cid.replace("pii_addr_", ""): cid for cid in component_keys
     }
 
     if kwargs:
-        invalid_keys = [key for key in kwargs if key not in valid_component_keys]
+        invalid_keys = [key for key in kwargs if key not in normalized_key_map]
         if invalid_keys:
             invalid_list = ", ".join(sorted(invalid_keys))
             raise KeyError(f"Unknown address component(s): {invalid_list}")
 
-    if not kwargs:
-        active_components = list(address_components.values())
-    else:
-        active_components = []
-        for cname, cdata in valid_component_keys.items():
-            if kwargs.get(cname, False):
-                active_components.append(cdata)
+    active_components = []
+    for cid, comp_data in address_components.items():
+        normalized = cid.replace("pii_addr_", "")
+        if kwargs and not kwargs.get(normalized, False):
+            continue
+        active_components.append((cid, comp_data))
 
     matches = []
-    for comp in active_components:
+    for comp_id, comp in active_components:
         pattern = comp['pattern']
         for m in re.finditer(pattern, text, flags=re.IGNORECASE):
             start, end = m.start(), m.end()
 
             while end < len(text) and text[end] in " ,.;:":
                 end += 1
+            snippet = text[start:end]
+            if comp_id == "pii_addr_house" and not re.search(r"\d", snippet):
+                continue
             matches.append((start, end))
+
+    if not matches:
+        return text
 
     matches.sort()
     merged = []
