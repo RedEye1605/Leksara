@@ -3,6 +3,7 @@
 import re
 import json
 from pathlib import Path
+from typing import Optional
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 # buat stemmer sekali saja (hemat waktu)
@@ -31,7 +32,7 @@ def _normalize_rating_config(raw_config):
     return {}, [], [], []
 
 
-def _load_rating_config(config_path: Path | None = None):
+def _load_rating_config(config_path: Optional[Path] = None):
     """Muat konfigurasi rating dan kembalikan bentuk ternormalisasi."""
     target_path = config_path
     if target_path is None:
@@ -50,7 +51,7 @@ try:
         base_regex_path / "rating_patterns.json",
     ]
 
-    last_error: Exception | None = None
+    last_error: Optional[Exception] = None
     for candidate in candidate_paths:
         try:
             _RATING_CONFIG, rules, blacklist, _FLAGS = _load_rating_config(candidate)
