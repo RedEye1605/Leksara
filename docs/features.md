@@ -217,7 +217,7 @@ Standardise Indonesian review language so downstream models receive canonical, a
 
 | Function | Purpose | Configuration knobs | Backing data |
 | --- | --- | --- | --- |
-| `replace_rating(text, placeholder="__RATING_5__" …)` | Detects `5/5`, star emojis, verbal scores (“lima bintang”) and converts them into numeric or placeholder tokens. | `placeholder`, `normalize_scale=True` to map arbitrary scales into 0–5. | `resources/regex_patterns/rating_patterns.json`, `rating_rules.json`. |
+| `replace_rating(text)` | Detects `5/5`, star emojis, verbal scores (“lima bintang”) and converts them into numeric auto scaled into 0–5 range. | – | `resources/regex_patterns/rating_patterns.json`, `rating_rules.json`. |
 | `shorten_elongation(text, max_repeat=2)` | Compresses repeated characters to mitigate expressive elongation (`mantuuulll`). | `max_repeat` must be ≥1. | Self-contained regex. |
 | `replace_acronym(text, mode="replace"\|"remove")` | Expands or removes acronyms. Applies context-aware conflict rules (e.g., “m” → “meter” vs “medium”). | `mode`. | `resources/dictionary/acronym_dict.json`, `dictionary_rules.json`. |
 | `normalize_slangs(text, mode="replace"\|"remove")` | Substitutes slang with standard words. | `mode`; fallback to original when dictionary missing. | `resources/dictionary/slangs_dict.json`. |
