@@ -1,6 +1,13 @@
 from leksara.functions.patterns.pii import replace_phone, replace_email, replace_address, replace_id
 from leksara.functions.cleaner.basic import remove_digits, remove_emoji, remove_tags, case_normal, remove_whitespace, remove_punctuation, remove_stopwords, replace_url
-from leksara.functions.review.advanced import shorten_elongation, word_normalization, replace_rating, expand_contraction, normalize_slangs, replace_acronym
+from leksara.functions.review.advanced import (
+    shorten_elongation,
+    word_normalization,
+    replace_rating,
+    expand_contraction,
+    normalize_slangs,
+    replace_acronym,
+)
 
 def ecommerce_review():
     return {
