@@ -30,7 +30,7 @@ Produce fast health checks for raw Indonesian text streams before or after clean
 | --- | --- | --- |
 | `CartBoard(raw_text: str, rating: float \| int \| None = None)` | Lightweight dataclass capturing a single review plus computed flags. | `.to_dict()` returns `original_text`, `rating`, `pii_flag`, `non_alphabetical_flag`. |
 | `get_flags(data, *, text_column="text", non_alpha_threshold=0.15, merge_input=True)` | Vectorised boolean flags for PII, rating mentions, and non-alphabetical noise. Accepts `str`, list, `Series`, or `DataFrame`. | `DataFrame` with original data (when `merge_input=True`) plus derived flag columns. |
-| `get_stats(data, *, merge_input=True, as_dict=True, text_column="text")` | Length, word-count, stopword-count, emoji count, stopword mix, whitespace metrics. | When `as_dict=True` each row holds a `dict` under `stats`; set to `False` to expand into columns. |
+| `get_stats(data, *, merge_input=True, as_dict=True, text_column="text")` | Length, word-count, Indonesian stopword hits, emoji count, whitespace metrics. | When `as_dict=True` each row holds a `dict` under `stats`; set to `False` to expand into columns. |
 | `noise_detect(data, *, include_normalized=True, merge_input=True, text_column="text")` | Enumerates raw URLs, HTML tags, emails, phones, emojis and optionally normalized phone numbers. | `DataFrame` with a `detect_noise` column holding dictionaries for every row. |
 
 ### Supported inputs
@@ -76,6 +76,7 @@ print(noise.iloc[1]["detect_noise"]["phones"])
 - `non_alpha_threshold` controls how tolerant the detector is to symbols and ASCII art. Lower thresholds catch more cases but may flag legitimate product names.
 - CartBoard does not mutate text; use it in read-only audits before invoking cleaning pipelines.
 - Combine `get_flags` with cleaning outputs to confirm that PII masking removed flagged tokens.
+- Stopword counts reflect the bundled Indonesian dictionary; pass a custom iterable to `remove_stopwords` (or pre-clean text) when you need domain-specific vocabularies.
 
 ---
 
@@ -153,7 +154,7 @@ Detect and obfuscate personally identifiable information common in Indonesian co
 ### Import surface
 
 ```python
-from leksara.function import (
+from leksara.pattern import (
     replace_phone,
     replace_address,
     replace_email,
@@ -183,7 +184,7 @@ If you pass an unknown component name, the function raises a `KeyError`. Use `re
 ### Example: secure chat transcript
 
 ```python
-from leksara.function import replace_phone, replace_email, replace_address
+from leksara.pattern import replace_phone, replace_email, replace_address
 
 text = (
     "Halo, nama saya Rani. Email: rani+vip@contoh.co.id, "
@@ -218,8 +219,8 @@ Standardise Indonesian review language so downstream models receive canonical, a
 | --- | --- | --- | --- |
 | `replace_rating(text, placeholder="__RATING_5__" …)` | Detects `5/5`, star emojis, verbal scores (“lima bintang”) and converts them into numeric or placeholder tokens. | `placeholder`, `normalize_scale=True` to map arbitrary scales into 0–5. | `resources/regex_patterns/rating_patterns.json`, `rating_rules.json`. |
 | `shorten_elongation(text, max_repeat=2)` | Compresses repeated characters to mitigate expressive elongation (`mantuuulll`). | `max_repeat` must be ≥1. | Self-contained regex. |
-| `replace_acronym(text, mode="replace"|"remove")` | Expands or removes acronyms. Applies context-aware conflict rules (e.g., “m” → “meter” vs “medium”). | `mode`. | `resources/dictionary/acronym_dict.json`, `dictionary_rules.json`. |
-| `normalize_slangs(text, mode="replace"|"remove")` | Substitutes slang with standard words. | `mode`; fallback to original when dictionary missing. | `resources/dictionary/slangs_dict.json`. |
+| `replace_acronym(text, mode="replace"\|"remove")` | Expands or removes acronyms. Applies context-aware conflict rules (e.g., “m” → “meter” vs “medium”). | `mode`. | `resources/dictionary/acronym_dict.json`, `dictionary_rules.json`. |
+| `normalize_slangs(text, mode="replace"\|"remove")` | Substitutes slang with standard words. | `mode`; fallback to original when dictionary missing. | `resources/dictionary/slangs_dict.json`. |
 | `expand_contraction(text)` | Expands Indonesian contractions (“gk” → “tidak”). | – | `resources/dictionary/contractions_dict.json`. |
 | `word_normalization(text, method="stem", word_list=None, mode="keep")` | Applies stemming/lemmatisation while protecting placeholders. | `method`, `word_list`, `mode` (`keep`, `only`, `exclude`). | `Sastrawi` stemmer plus whitelist management. |
 
@@ -270,6 +271,13 @@ Provide consistent execution semantics for cleaning pipelines whether you prefer
 | `ReviewChain` | You need to reuse the same steps many times, inspect intermediate names, or embed in services. | Construct via `ReviewChain.from_steps(patterns, functions)` or `.from_preset(name)`. Methods: `.transform(data, benchmark=False)`, `.process_text(text)`, `.run_on_series(series)`. |
 
 ### Pipeline schema
+
+Import helpers explicitly from their respective modules before constructing the schema:
+
+```python
+from leksara.pattern import replace_phone, replace_email
+from leksara.function import case_normal, remove_stopwords, remove_punctuation
+```
 
 ```python
 pipeline = {

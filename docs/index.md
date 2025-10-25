@@ -41,6 +41,7 @@ print(metrics)
 
 - **CartBoard dashboards** capture PII, rating mentions, emoji usage, and other noise indicators without mutating raw text.
 - **Composable cleaning primitives** provide deterministic behaviour for casing, stopwords, punctuation, links, and emoji.
+- **Dedicated pattern layer** isolates PII masking (`leksara.pattern`) so you opt in to heavy regex rules only when needed.
 - **Advanced review normalisation** handles rating expressions, slang, acronyms, contractions, and Indo-specific stemming.
 - **ReviewChain orchestrators** unify preset and custom pipelines with benchmarking, logging hooks, and whitelist protection.
 - **Resource packs** ship bundled dictionaries and regex patterns that you can override at runtime when domain knowledge evolves.

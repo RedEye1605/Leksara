@@ -1,10 +1,20 @@
 # Examples and Recipes
 
-Each scenario below corresponds to a core feature described in `docs/features.md`. Copy the snippets into a notebook or script and adapt them to your data sources.
+These walkthroughs show the raw data you feed into Leksara, the exact code you run, and the transformed outputs in table form. Each scenario keeps the library’s execution order intact: PII masking first, then cleaning functions.
 
 ---
 
-## 1. Audit a raw review feed with CartBoard
+## 1. CartBoard Audit Walkthrough
+
+### 1.1 CartBoard Input Records
+
+| review_id | channel   | text                                                                          |
+|-----------|-----------|--------------------------------------------------------------------------------|
+| 21        | Tokopedia | Produk kece bgt!!! Email saya `user@mail.id` ⭐⭐⭐⭐⭐                            |
+| 22        | Shopee    | Pengiriman lambat :( Hubungi 0812-3456-7890                                   |
+| 23        | Lazada    | Oke lah, cuma packing agak rusak                                               |
+
+### 1.2 CartBoard Python Code
 
 ```python
 import pandas as pd
@@ -26,54 +36,109 @@ flags = get_flags(reviews, text_column="text")
 stats = get_stats(reviews, text_column="text")
 noise = noise_detect(reviews, text_column="text", include_normalized=False)
 
-report = flags.join(stats[["review_id", "stats"]].set_index("review_id"), on="review_id")
-report = report.join(noise[["review_id", "detect_noise"]].set_index("review_id"), on="review_id")
+flags_view = flags[["review_id", "pii_flag", "rating_flag", "non_alphabetical_flag"]]
+stats_entry = stats.loc[21, "stats"]
+noise_entry = noise.loc[22, "detect_noise"]
 
-print(report[["review_id", "pii_flag", "rating_flag", "non_alphabetical_flag"]])
-print(report.loc[21, "detect_noise"]["emails"])
+print(flags_view)
+print(stats_entry)
+print(noise_entry)
 ```
 
-### What this shows
+### 1.3 CartBoard Output Tables
 
-- `pii_flag` highlights entries that will require masking before sharing with analysts.
-- The `stats` dictionary exposes per-review length, word counts, and emoji counts—use it to build dashboards.
-- `detect_noise` inventories the raw artefacts (URLs, phones) you can later compare with cleaned text to confirm redaction success.
+#### 1.3.1 Flag Indicators
+
+| review_id | pii_flag | rating_flag | non_alphabetical_flag |
+|-----------|----------|-------------|------------------------|
+| 21        | True     | True        | True                   |
+| 22        | True     | False       | True                   |
+| 23        | False    | False       | False                  |
+
+#### 1.3.2 Stats Snapshot (review_id 21)
+
+| metric         | value                                        |
+|----------------|----------------------------------------------|
+| length         | 60                                           |
+| word_count     | 9                                            |
+| stopwords      | 2                                            |
+| punctuations   | 7                                            |
+| symbols        | 0                                            |
+| emojis         | 5                                            |
+| noise_count    | 3                                            |
+| urls           | []                                           |
+| html_tags      | []                                           |
+| emails         | ['user@mail.id']                             |
+| phones         | []                                           |
+| phones_normalized | []                                        |
+| emoji_list     | ['⭐', '⭐', '⭐', '⭐', '⭐']                   |
+
+#### 1.3.3 Noise Inspection (review_id 22)
+
+| artifact | value               |
+|----------|---------------------|
+| urls     | []                  |
+| html_tags| []                  |
+| emails   | []                  |
+| phones   | ['0812-3456-7890']  |
+| phones_normalized | ['081234567890'] |
+| emojis   | []                  |
+
+CartBoard keeps the original text intact while flagging sensitive content, scores, and noise artefacts for each record.
 
 ---
 
-## 2. Clean a Pandas Series using the ecommerce preset
+## 2. Ecommerce Preset Cleanup
+
+### 2.1 Preset Input Reviews
+
+| idx | raw_text                                                       |
+|-----|----------------------------------------------------------------|
+| 0   | &lt;p&gt;MANTUL banget! ⭐⭐⭐⭐⭐ Hubungi CS: +62 812-3333-4444&lt;/p&gt;   |
+| 1   | Barangnya bagus, packaging aman. Rating 4/5.                  |
+
+### 2.2 Preset Python Code
 
 ```python
 import pandas as pd
 from leksara import leksara
 
-df = pd.DataFrame(
-    {
-        "order_id": [111, 112],
-        "review": [
-            "<p>MANTUL banget! ⭐⭐⭐⭐⭐ Hubungi CS: +62 812-3333-4444</p>",
-            "Barangnya bagus, packaging aman. Rating 4/5.",
-        ],
-    }
-)
+reviews = pd.Series([
+    "<p>MANTUL banget! ⭐⭐⭐⭐⭐ Hubungi CS: +62 812-3333-4444</p>",
+    "Barangnya bagus, packaging aman. Rating 4/5.",
+])
 
-df["clean_review"] = leksara(df["review"], preset="ecommerce_review")
-print(df[["order_id", "clean_review"]])
+cleaned = leksara(reviews, preset="ecommerce_review")
+print(cleaned)
 ```
 
-### Why this works
+### 2.3 Preset Output Reviews
 
-- The preset bundles PII masking, casing, stopword removal, slang normalisation, and rating replacement steps.
-- Inputs that are not strings (for example `NaN`) are returned unchanged, so no pre-filtering is required.
+| idx | cleaned_text                                                |
+|-----|-------------------------------------------------------------|
+| 0   | mantul banget __RATING_5__ hubungi cs [PHONE_NUMBER]        |
+| 1   | barangnya bagus packaging aman __RATING_4__                 |
+
+The preset automatically runs the PII masking steps (`replace_phone`, `replace_email`, `replace_address`, `replace_id`) before executing the cleaner stack (`remove_tags`, `case_normal`, `replace_url`, etc.).
 
 ---
 
-## 3. Extend a preset with additional masking
+## 3. Customize the Ecommerce Preset
+
+### 3.1 Custom Pipeline Input Messages
+
+| idx | raw_text                                                                    |
+|-----|-----------------------------------------------------------------------------|
+| 0   | Alamat lengkap: Jl. Durian No. 12 RT 01 RW 03, Jakarta. Rating: 4/5        |
+| 1   | Pickup di Mall Central Park lt.3 ya                                         |
+
+### 3.2 Custom Pipeline Python Code
 
 ```python
 from leksara import leksara
 from leksara.core.presets import get_preset
-from leksara.function import replace_address, remove_digits
+from leksara.function import remove_digits
+from leksara.pattern import replace_address
 
 pipeline = get_preset("ecommerce_review")
 pipeline["patterns"].append((replace_address, {"mode": "replace", "street": True, "city": True}))
@@ -84,29 +149,34 @@ messages = [
     "Pickup di Mall Central Park lt.3 ya",
 ]
 
-cleaned = leksara(messages, pipeline=pipeline)
-for text in cleaned:
-    print(text)
+print(leksara(messages, pipeline=pipeline))
 ```
 
-### Key takeaways
+### 3.3 Custom Pipeline Output Messages
 
-- You can manipulate the preset dictionary to add new pattern/function steps before running the pipeline.
-- Passing component toggles to `replace_address` limits masking to specific address fragments.
+| idx | cleaned_text                                   |
+|-----|------------------------------------------------|
+| 0   | alamat lengkap [ADDRESS] __RATING_4__          |
+| 1   | pickup di mall central park lt ya              |
+
+Appending `replace_address` ensures full address masking, and placing `remove_digits` at the end removes leftover numerics after masking.
 
 ---
 
-## 4. Build a reusable ReviewChain for streaming jobs
+## 4. ReviewChain for Streaming Events
+
+### 4.1 ReviewChain Input Event
+
+| field   | value                                                  |
+|---------|--------------------------------------------------------|
+| message | Halo CS, email saya `rani@shop.id`, nomor 0812333444.   |
+
+### 4.2 ReviewChain Python Code
 
 ```python
 from leksara import ReviewChain
-from leksara.function import (
-    case_normal,
-    replace_phone,
-    replace_email,
-    remove_stopwords,
-    remove_punctuation,
-)
+from leksara.function import case_normal, remove_stopwords, remove_punctuation
+from leksara.pattern import replace_phone, replace_email
 
 chain = ReviewChain.from_steps(
     patterns=[
@@ -116,25 +186,42 @@ chain = ReviewChain.from_steps(
     functions=[case_normal, remove_stopwords, remove_punctuation],
 )
 
-def clean_event(payload: dict) -> dict:
-    processed, metrics = chain.transform([payload["message"]], benchmark=True)
-    payload["clean_message"] = processed[0]
-    payload["timings"] = metrics
-    return payload
-
-# Example event from a queue
 event = {"message": "Halo CS, email saya rani@shop.id, nomor 0812333444."}
-print(clean_event(event))
+cleaned, timings = chain.transform([event["message"]], benchmark=True)
+print(cleaned[0])
+print(timings["per_step"])
 ```
 
-### Why use `ReviewChain` here?
+### 4.3 ReviewChain Output Summary
 
-- You can memoise the chain and reuse it across events instead of rebuilding the pipeline for every message.
-- `benchmark=True` exposes per-step timing so you can emit performance metrics to monitoring systems.
+| field         | value                                              |
+|---------------|----------------------------------------------------|
+| cleaned_text  | halo cs email saya [EMAIL] nomor [PHONE_NUMBER]     |
+
+#### 4.3.1 ReviewChain Per-step Timings (seconds)
+
+| step               | seconds |
+|--------------------|---------|
+| replace_phone      | 0.0008  |
+| replace_email      | 0.0006  |
+| case_normal        | 0.0002  |
+| remove_stopwords   | 0.0003  |
+| remove_punctuation | 0.0001  |
+
+Benchmarking confirms the chain executes masking steps before text normalization functions.
 
 ---
 
-## 5. Update slang handling at runtime
+## 5. Runtime Slang Dictionary Patch
+
+### 5.1 Slang Patch Inputs
+
+| item             | value                                             |
+|------------------|---------------------------------------------------|
+| slang update map | {"bgst": "bagus", "cmiiw": "tolong koreksi jika salah"} |
+| sample text      | Produk bgst banget, cmiiw tapi garansinya 2 tahun |
+
+### 5.2 Slang Patch Python Code
 
 ```python
 import json
@@ -143,21 +230,21 @@ from pathlib import Path
 import leksara.functions.review.advanced as adv
 from leksara.function import normalize_slangs
 
-# Load the bundled slang dictionary, extend it, then patch the module-level cache.
 slang_path = Path(adv.__file__).resolve().parent.parent / "resources" / "dictionary" / "slangs_dict.json"
-with slang_path.open(encoding="utf-8") as fh:
-    slang_dict = json.load(fh)
-
+slang_dict = json.loads(slang_path.read_text(encoding="utf-8"))
 slang_dict.update({"bgst": "bagus", "cmiiw": "tolong koreksi jika salah"})
-adv._SLANGS_DICT = slang_dict  # monkeypatch for this process
+adv._SLANGS_DICT = slang_dict
 
 text = "Produk bgst banget, cmiiw tapi garansinya 2 tahun"
 print(normalize_slangs(text))
 ```
 
-### Important notes
+### 5.3 Slang Patch Output
 
-- Many advanced functions keep their dictionaries in module-level caches. Updating the cache before running pipelines lets you experiment without rebuilding the package.
-- After monkeypatching, rerun key unit tests (`tests/test_review_advanced.py`) to ensure behaviour remains stable.
+| field          | value                                                             |
+|----------------|-------------------------------------------------------------------|
+| normalized_text| Produk bagus banget, tolong koreksi jika salah tapi garansinya 2 tahun |
+
+Advanced review helpers cache their dictionaries when imported, so patching `_SLANGS_DICT` lets you trial new terminology without editing resource files immediately.
 
 

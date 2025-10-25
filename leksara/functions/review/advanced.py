@@ -244,8 +244,6 @@ def shorten_elongation(text: str, max_repeat: int = 2) -> str:
     """Kurangi pengulangan karakter hingga maksimal `max_repeat` kemunculan.
 
     Contoh: mantuuulll -> mantul (dengan max_repeat=1 atau 2 sesuai preferensi)
-    
-    TODO: Implementasi fungsi ini oleh kontributor selanjutnya.
     """
     if max_repeat < 1:
         raise ValueError("max_repeat must be >= 1")

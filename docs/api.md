@@ -10,7 +10,7 @@ This document lists the public interfaces exposed by Leksara. Use it as a quick 
 2. [ReviewChain class](#reviewchain-class)
 3. [CartBoard & frame utilities](#cartboard--frame-utilities)
 4. [Cleaning primitives (`leksara.function`)](#cleaning-primitives-leksarafunction)
-5. [PII utilities (`leksara.function`)](#pii-utilities-leksarafunction)
+5. [PII utilities (`leksara.pattern`)](#pii-utilities-leksarapattern)
 6. [Review normalisation utilities](#review-normalisation-utilities)
 7. [Logging helpers](#logging-helpers)
 8. [Preset management](#preset-management)
@@ -88,7 +88,7 @@ from leksara.frames.cartboard import CartBoard, get_flags, get_stats, noise_dete
 | --- | --- | --- | --- |
 | `CartBoard(raw_text: str, rating: float \| int \| None = None)` | `raw_text`: required string. `rating`: optional numeric score. | Dataclass-like object with properties `.original_text`, `.rating`, `.pii_flag`, `.non_alphabetical_flag`. | Call `.to_dict()` to serialise. |
 | `get_flags(data, *, text_column="text", non_alpha_threshold=0.15, merge_input=True)` | `data`: str/list/Series/DataFrame. `text_column`: source column inside DataFrame/Series. | `pandas.DataFrame` containing flag columns (`rating_flag`, `pii_flag`, `non_alphabetical_flag`) plus original data when `merge_input=True`. | Uses regex + heuristics to determine noise. |
-| `get_stats(data, *, text_column="text", merge_input=True, as_dict=True)` | Same data handling as `get_flags`. `as_dict=True` nests stats per row. | Frame with `stats` payload (length, word_count, stopwords, emojis, whitespace ratios). | Set `as_dict=False` to expand stats into top-level columns. |
+| `get_stats(data, *, text_column="text", merge_input=True, as_dict=True)` | Same data handling as `get_flags`. `as_dict=True` nests stats per row. | Frame with `stats` payload (length, word_count, Indonesian stopword hits, emojis, whitespace ratios). | Set `as_dict=False` to expand stats into top-level columns. |
 | `noise_detect(data, *, text_column="text", merge_input=True, include_normalized=True)` | Controls whether normalized phone numbers are included. | Frame with `detect_noise` dictionary: `urls`, `html_tags`, `emails`, `phones`, `phones_normalized`, `emojis`. | Useful for audits and dashboards. |
 
 ---
@@ -123,10 +123,10 @@ All helpers return the original value when given `None`, non-string objects, or 
 
 ---
 
-## PII utilities (`leksara.function`)
+## PII utilities (`leksara.pattern`)
 
 ```python
-from leksara.function import (
+from leksara.pattern import (
   replace_phone,
   replace_address,
   replace_email,

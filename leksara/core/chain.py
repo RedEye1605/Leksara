@@ -224,7 +224,6 @@ class ReviewChain:
             for i, fn in enumerate(fns)
         }
 
-    # ----- API mirip sklearn -----
     def fit(self, data=None, y=None):  # stateless
         return self
 

@@ -5,20 +5,20 @@ from leksara.functions.review.advanced import shorten_elongation, word_normaliza
 def ecommerce_review():
     return {
         "patterns": [
+            (replace_id, {"mode": "replace"}),
             (replace_phone, {"mode": "replace"}),
             (replace_email, {"mode": "replace"}),
             (replace_address, {"mode": "replace"}),
-            (replace_id, {"mode": "replace"}),
         ],
         "functions": [
             remove_tags,
             case_normal,
-            (replace_url, {"mode": "replace"}),
+            (replace_url, {"mode": "remove"}),
             (remove_emoji, {"mode": "replace"}),
-            # replace_rating,
-            # expand_contraction,
-            # normalize_slangs,
-            # replace_acronym,
+            replace_rating,
+            expand_contraction,
+            (normalize_slangs, {"mode": "replace"}),
+            (replace_acronym, {"mode": "replace"}),
             word_normalization, 
             remove_stopwords,
             shorten_elongation,
