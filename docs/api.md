@@ -160,7 +160,7 @@ from leksara.function import (
 
 | Function | Key parameters | Result |
 | --- | --- | --- |
-| `replace_rating(text, placeholder="__RATING__", normalize_scale=True)` | `placeholder`: custom token. `normalize_scale`: map arbitrary x/10 scales to 0–5 range. `blacklist`: optional iterable of substrings to ignore. | Returns text with rating mentions replaced by numeric string or placeholder. |
+| `replace_rating(text)` | – | Returns text with rating mentions replaced by numeric string auto scaled to 0–5 range. |
 | `shorten_elongation(text, max_repeat=2)` | `max_repeat` must be ≥1. | Reduces consecutive repeated characters beyond threshold. |
 | `replace_acronym(text, mode="replace"\|"remove")` | Uses acronym dictionary and conflict rules. | Replaces or removes acronyms; context-sensitive for ambiguous tokens. |
 | `normalize_slangs(text, mode="replace"\|"remove")` | `mode`. | Substitutes colloquial slang with dictionary entries. |
