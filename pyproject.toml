@@ -34,7 +34,7 @@ dependencies = [
   "Sastrawi>=1.0.1",
 ]
 
-dynamic = ["version"]
+version = "0.1.0"
 
 [project.optional-dependencies]
 dev = [
