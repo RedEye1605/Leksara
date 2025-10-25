@@ -107,12 +107,12 @@ from leksara.function import (
 | --- | --- | --- | --- |
 | `remove_tags(text)` | Strips HTML/XML tags and decodes common entities. | – | Uses regex patterns tuned for marketplace review markup. |
 | `case_normal(text)` | Lowercases text and normalises accented characters & punctuation width. | – | Maintains placeholder brackets (`[TOKEN]`). |
-| `remove_stopwords(text, stopwords: Iterable[str] \| None = None)` | Drops Indonesian stopwords. | `stopwords`: override or extend bundled list. | Falls back to `resources/stopwords/id.txt` when `None`. |
+| `remove_stopwords(text)` | Drops Indonesian stopwords. | - | Falls back to `resources/stopwords/id.txt` when `None`. |
 | `remove_whitespace(text)` | Collapses repeated whitespace and trims ends. | – | Safe to use after masking to avoid destroying placeholder spacing. |
 | `remove_punctuation(text)` | Removes punctuation characters except underscore and placeholders. | – | Handles full-width punctuation and emoji punctuation. |
 | `remove_digits(text)` | Removes decimal digits. | – | Combine with `replace_rating` if you still need rating tokens. |
 | `remove_emoji(text)` | Drops emoji code points. | – | Requires `emoji` package for best coverage; silently skips when missing. |
-| `replace_url(text, mode="remove"\|"replace", placeholder="[URL]")` | Detects URLs (with or without protocol) and removes or masks them. | `mode`, `placeholder` | Relies on `URL_PATTERN` definitions in `basic.py`. |
+| `replace_url(text, mode="remove"\|"replace")` | Detects URLs (with or without protocol) and removes or masks them. | `mode` | Relies on `URL_PATTERN` definitions in `basic.py`. |
 
 ### Pipeline example
 
@@ -217,7 +217,7 @@ Standardise Indonesian review language so downstream models receive canonical, a
 
 | Function | Purpose | Configuration knobs | Backing data |
 | --- | --- | --- | --- |
-| `replace_rating(text, placeholder="__RATING_5__" …)` | Detects `5/5`, star emojis, verbal scores (“lima bintang”) and converts them into numeric or placeholder tokens. | `placeholder`, `normalize_scale=True` to map arbitrary scales into 0–5. | `resources/regex_patterns/rating_patterns.json`, `rating_rules.json`. |
+| `replace_rating(text)` | Detects `5/5`, star emojis, verbal scores (“lima bintang”) and converts them into numeric auto scaled into 0–5 range. | – | `resources/regex_patterns/rating_patterns.json`, `rating_rules.json`. |
 | `shorten_elongation(text, max_repeat=2)` | Compresses repeated characters to mitigate expressive elongation (`mantuuulll`). | `max_repeat` must be ≥1. | Self-contained regex. |
 | `replace_acronym(text, mode="replace"\|"remove")` | Expands or removes acronyms. Applies context-aware conflict rules (e.g., “m” → “meter” vs “medium”). | `mode`. | `resources/dictionary/acronym_dict.json`, `dictionary_rules.json`. |
 | `normalize_slangs(text, mode="replace"\|"remove")` | Substitutes slang with standard words. | `mode`; fallback to original when dictionary missing. | `resources/dictionary/slangs_dict.json`. |

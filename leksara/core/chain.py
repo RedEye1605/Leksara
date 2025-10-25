@@ -183,17 +183,6 @@ def leksara(
         return out, metrics
     return out
 
-
-def run_pipeline(
-    data,
-    pipeline: Optional[Dict[str, Iterable[Step]]] = None,
-    *,
-    benchmark: bool = False,
-    preset: Optional[str] = None,
-):
-    return leksara(data, pipeline=pipeline, benchmark=benchmark, preset=preset)
-
-
 # -------------------------- OOP API ----------------------------
 @dataclass
 class ReviewChain:

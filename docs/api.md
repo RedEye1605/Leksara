@@ -117,7 +117,7 @@ from leksara.function import (
 | `remove_punctuation(text)` | `str -> str` | Removes punctuation characters while preserving placeholder brackets. |
 | `remove_digits(text)` | `str -> str` | Drops ASCII digits. |
 | `remove_emoji(text)` | `str -> str` | Removes emoji code points. Falls back to identity when `emoji` package is missing. |
-| `replace_url(text, mode="remove"\|"replace", placeholder="[URL]")` | `str -> str` | Detects URLs (with optional protocol) and either removes or replaces them with the placeholder. |
+| `replace_url(text, mode="remove"\|"replace"")` | `str -> str` | Detects URLs (with optional protocol) and either removes or replaces them with the placeholder. |
 
 All helpers return the original value when given `None`, non-string objects, or empty strings. Downstream pipelines rely on this behaviour to gracefully handle `NaN` in Series.
 
@@ -160,12 +160,12 @@ from leksara.function import (
 
 | Function | Key parameters | Result |
 | --- | --- | --- |
-| `replace_rating(text, placeholder="__RATING__", normalize_scale=True)` | `placeholder`: custom token. `normalize_scale`: map arbitrary x/10 scales to 0–5 range. `blacklist`: optional iterable of substrings to ignore. | Returns text with rating mentions replaced by numeric string or placeholder. |
+| `replace_rating(text)` | – | Returns text with rating mentions replaced by numeric string auto scaled to 0–5 range. |
 | `shorten_elongation(text, max_repeat=2)` | `max_repeat` must be ≥1. | Reduces consecutive repeated characters beyond threshold. |
 | `replace_acronym(text, mode="replace"\|"remove")` | Uses acronym dictionary and conflict rules. | Replaces or removes acronyms; context-sensitive for ambiguous tokens. |
 | `normalize_slangs(text, mode="replace"\|"remove")` | `mode`. | Substitutes colloquial slang with dictionary entries. |
 | `expand_contraction(text)` | – | Expands Indonesian contractions; returns original value when not a string. |
-| `word_normalization(text, method="stem", word_list=None, mode="keep")` | `method`: currently `"stem"`. `word_list`: iterable of tokens to protect or include depending on `mode`. `mode`: `keep`, `only`, `exclude`. | Applies stemming using Sastrawi when available; automatically masks placeholders before stemming. |
+| `word_normalization(text, word_list=None, mode="keep")` | `word_list`: iterable of tokens to protect or include depending on `mode`. `mode`: `keep`, `only`. | Applies stemming using Sastrawi when available; automatically masks placeholders before stemming. |
 
 ---
 
@@ -187,12 +187,11 @@ Both functions respect Python’s standard logging configuration and can be inte
 ## Preset management
 
 ```python
-from leksara.core.presets import get_preset, list_presets
+from leksara.core.presets import get_preset
 ```
 
 | Function | Description |
 | --- | --- |
-| `list_presets()` | Returns an iterable of available preset names bundled with the package. |
 | `get_preset(name)` | Retrieves a preset definition dict containing `"patterns"` and `"functions"`. Raises `KeyError` for unknown names. |
 
 Preset dictionaries can be modified before passing to `leksara(...)` or `ReviewChain.from_steps` to add/remove stages.
