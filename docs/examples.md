@@ -116,8 +116,8 @@ print(cleaned)
 
 | idx | cleaned_text                                                |
 |-----|-------------------------------------------------------------|
-| 0   | mantul banget __RATING_5__ hubungi cs [PHONE_NUMBER]        |
-| 1   | barangnya bagus packaging aman __RATING_4__                 |
+| 0   | mantul banget 5.0 hubungi cs [PHONE_NUMBER]                 |
+| 1   | barangnya bagus packaging aman 4.0                          |
 
 The preset automatically runs the PII masking steps (`replace_phone`, `replace_email`, `replace_address`, `replace_id`) before executing the cleaner stack (`remove_tags`, `case_normal`, `replace_url`, etc.).
 
@@ -129,7 +129,7 @@ The preset automatically runs the PII masking steps (`replace_phone`, `replace_e
 
 | idx | raw_text                                                                    |
 |-----|-----------------------------------------------------------------------------|
-| 0   | Alamat lengkap: Jl. Durian No. 12 RT 01 RW 03, Jakarta. Rating: 4/5        |
+| 0   | Alamat lengkap: Jl. Durian No. 12 RT 01 RW 03, Jakarta. Rating: 4/5         |
 | 1   | Pickup di Mall Central Park lt.3 ya                                         |
 
 ### 3.2 Custom Pipeline Python Code
@@ -156,7 +156,7 @@ print(leksara(messages, pipeline=pipeline))
 
 | idx | cleaned_text                                   |
 |-----|------------------------------------------------|
-| 0   | alamat lengkap [ADDRESS] __RATING_4__          |
+| 0   | alamat lengkap [ADDRESS] 4.0                   |
 | 1   | pickup di mall central park lt ya              |
 
 Appending `replace_address` ensures full address masking, and placing `remove_digits` at the end removes leftover numerics after masking.
