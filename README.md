@@ -69,13 +69,8 @@ print(stats.iloc[0]["stats"])  # nested histogram of noise sources
 
 ```python
 from leksara import ReviewChain
-from leksara.function import (
-    case_normal,
-    remove_punctuation,
-    remove_stopwords,
-    replace_email,
-    replace_phone,
-)
+from leksara.function import case_normal, remove_punctuation, remove_stopwords
+from leksara.pattern import replace_email, replace_phone
 
 chain = ReviewChain.from_steps(
     patterns=[(replace_phone, {"mode": "replace"}), (replace_email, {"mode": "replace"})],
@@ -104,7 +99,8 @@ cleaned, metrics = chain.transform(df["review_text"], benchmark=True)
 
 - **Pipelines** – `leksara(...)` is a convenience wrapper around `ReviewChain`; both accept raw sequences (list/Series) and return cleaned text plus optional benchmarking details.
 - **Frames layer** – `CartBoard` and friends operate on review tables, deriving flags, statistics, and noise diagnostics suitable for dashboards.
-- **Functions layer** – The `leksara.function` module mirrors the implementation modules under `leksara/functions` so you can cherry-pick individual cleaners without touching internals.
+- **Functions layer** – The `leksara.function` module mirrors the implementation modules under `leksara/functions/cleaner` and `leksara/functions/review`, so you can cherry-pick cleaners and normalisers without touching internals.
+- **Pattern layer** – Need masking utilities? Import them explicitly from `leksara.pattern` to opt-in to PII-specific regular-expression rules.
 - **Resources** – Regex rules and dictionaries stored under `leksara/resources/` drive PII detection, slang resolution, and whitelist protection. Update these files to specialise the toolkit.
 - **Logging & benchmarking** – `leksara.core.logging` ships opt-in helpers to emit step-level logs, while `benchmark=True` collects timing metadata for throughput tuning.
 

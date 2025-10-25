@@ -8,7 +8,7 @@ Presets bundle pattern detectors and cleaning functions that work well together 
 
 | Name | Description | Included pattern detectors | Included functions | Optional dependencies |
 | --- | --- | --- | --- | --- |
-| `ecommerce_review` | General-purpose cleaning for marketplace reviews and chat transcripts. Focuses on PII masking, casing, token normalisation, and punctuation cleanup. | `replace_phone`, `replace_email`, `replace_address`, `replace_id` (all in replace mode). | `remove_tags`, `case_normal`, `replace_url(mode="replace")`, `remove_emoji(mode="replace")`, `word_normalization`, `remove_stopwords`, `shorten_elongation`, `remove_punctuation`, `remove_whitespace`. | `emoji` (for richer emoji mapping), `Sastrawi` (for `word_normalization`). |
+| `ecommerce_review` | General-purpose cleaning for marketplace reviews and chat transcripts. Focuses on PII masking, casing, token normalisation, and punctuation cleanup. | `replace_id`, `replace_phone`, `replace_email`, `replace_address` (all invoked with `mode="replace"`). | `remove_tags`, `case_normal`, `replace_url(mode="remove")`, `remove_emoji(mode="replace")`, `replace_rating`, `expand_contraction`, `normalize_slangs(mode="replace")`, `replace_acronym(mode="replace")`, `word_normalization`, `remove_stopwords`, `shorten_elongation`, `remove_punctuation`, `remove_whitespace`. | `emoji` (for richer emoji mapping), `Sastrawi` (for `word_normalization`). |
 
 > **Note**: `word_normalization` automatically falls back to returning the original text when `Sastrawi` is missing, so the preset still works in lightweight environments.
 
@@ -37,7 +37,8 @@ print(clean)
 ```python
 from leksara import leksara
 from leksara.core.presets import get_preset
-from leksara.function import replace_address, remove_digits
+from leksara.function import remove_digits
+from leksara.pattern import replace_address
 
 preset = get_preset("ecommerce_review")
 preset["patterns"].append((replace_address, {"mode": "replace", "street": True}))
@@ -54,7 +55,7 @@ print(leksara(texts, pipeline=preset))
 
 ## Authoring your own preset
 
-1. Decide which PII patterns must run before general cleaning (phones, emails, NIK, addresses).
+1. Decide which PII patterns must run before general cleaning (phones, emails, NIK, addresses). Import them from `leksara.pattern`.
 2. Pick cleaning primitives in the order recommended by `features.md` (case normalisation → URL/emoji replacement → stopwords → punctuation → whitespace).
 3. Inline advanced steps such as `replace_rating` or `normalize_slangs` when the use case demands them.
 4. Return the configuration as a dictionary and register it in `PRESETS` inside `core/presets.py`.

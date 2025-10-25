@@ -34,7 +34,8 @@ The `metrics` dictionary contains:
 
 ```python
 from leksara import ReviewChain
-from leksara.function import replace_phone, replace_email, case_normal
+from leksara.function import case_normal
+from leksara.pattern import replace_phone, replace_email
 
 chain = ReviewChain.from_steps(
     patterns=[(replace_phone, {"mode": "replace"}), (replace_email, {"mode": "replace"})],

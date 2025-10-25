@@ -33,13 +33,8 @@ print(metrics)
 
 ```python
 from leksara import leksara
-from leksara.function import (
-    case_normal,
-    remove_stopwords,
-    remove_punctuation,
-    replace_phone,
-    replace_email,
-)
+from leksara.function import case_normal, remove_stopwords, remove_punctuation
+from leksara.pattern import replace_phone, replace_email
 
 custom_pipeline = {
     "patterns": [
@@ -130,6 +125,7 @@ adv._SLANGS_DICT = data  # applies for the current process
 
 ## Common defaults & policies
 
+- Import PII masking helpers from `leksara.pattern` and cleaning helpers from `leksara.function` to keep dependencies explicit.
 - Placeholder tokens such as `[PHONE_NUMBER]` and `[EMAIL]` are preserved by cleaning functions to avoid double masking.
 - `word_normalization` returns input text unchanged when `Sastrawi` is not present. Install the optional dependency or guard the step.
 - Pattern detectors raise `TypeError` when they receive non-string inputs; wrap your loaders with `.fillna("")` or filter out invalid entries if this is undesirable.

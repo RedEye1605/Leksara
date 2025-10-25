@@ -57,13 +57,6 @@ from ..functions.patterns.pii import (
 from ..functions.review.advanced import replace_rating
 
 
-ENGLISH_COMMON_WORDS = {
-    "the", "is", "are", "and", "or", "with", "this", "that", "very", "good", "bad",
-    "not", "you", "we", "they", "it", "of", "to", "for", "on", "in", "at", "from",
-    "i", "my", "your", "our", "their", "too", "so", "but", "if", "when", "then",
-    "quality", "product", "service", "fast", "cheap", "thanks", "thank", "best",
-}
-
 _EMOJI_PATTERN = re.compile("|".join(map(re.escape, emoji_dictionary.keys()))) if emoji_dictionary else re.compile(r"$^")
 
 DEFAULT_NON_ALPHA_THRESHOLD = 0.15
@@ -132,10 +125,6 @@ def _tokenize_words(text: str) -> List[str]:
 def _count_id_stopwords(tokens: Iterable[str]) -> int:
     stopwords = _get_id_stopwords_full()
     return sum(1 for token in tokens if token in stopwords)
-
-
-def _count_en_stopwords(tokens: Iterable[str]) -> int:
-    return sum(1 for token in tokens if token in ENGLISH_COMMON_WORDS)
 
 
 def _calc_non_alpha_ratio(text: str) -> float:
@@ -276,7 +265,7 @@ def _build_flag_record(text: str, *, non_alpha_threshold: float) -> Dict[str, An
 def _build_stats_record(text: str) -> Dict[str, Any]:
     stripped = _strip_html(text)
     tokens = _tokenize_words(stripped)
-    stopword_count = _count_id_stopwords(tokens) + _count_en_stopwords(tokens)
+    stopword_count = _count_id_stopwords(tokens)
     punctuation_removed = len(stripped) - len(remove_punctuation(stripped))
     symbols_removed = len(stripped) - len(remove_digits(stripped))
     emojis = _extract_emojis(stripped)

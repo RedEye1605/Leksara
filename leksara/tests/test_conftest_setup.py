@@ -9,8 +9,10 @@ def test_package_root_on_sys_path():
 
 def test_function_module_reexports_utilities():
     from leksara import function as fn
+    from leksara import pattern as pt
     from leksara.functions.patterns.pii import replace_phone as impl_phone
     from leksara.functions.cleaner.basic import remove_tags as impl_remove_tags
 
-    assert fn.replace_phone is impl_phone
     assert fn.remove_tags is impl_remove_tags
+    assert pt.replace_phone is impl_phone
+    assert not hasattr(fn, "replace_phone")
