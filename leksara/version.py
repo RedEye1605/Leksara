@@ -17,7 +17,7 @@ def _get_version() -> str:
 	try:
 		return version("leksara")
 	except PackageNotFoundError:
-		return "0.0.dev0"
+		return "0.0+unknown"
 
 
 __version__ = _get_version()
