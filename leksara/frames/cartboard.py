@@ -49,6 +49,8 @@ from ..functions.cleaner.basic import (
 from ..functions.patterns.pii import (
     replace_email,
     replace_phone,
+    replace_address,
+    replace_id,
     email_config,
     phone_config,
     NIK_config,
@@ -62,6 +64,7 @@ _EMOJI_PATTERN = re.compile("|".join(map(re.escape, emoji_dictionary.keys()))) i
 DEFAULT_NON_ALPHA_THRESHOLD = 0.15
 _RATING_FRACTION_PATTERN = re.compile(r"\b\d+/\d+\b")
 _REPEATED_SYMBOL_PATTERN = re.compile(r"([!?#*]){2,}")
+_ADDRESS_MERGE_THRESHOLD = 10
 
 
 def _load_rating_patterns() -> List[re.Pattern]:
@@ -241,10 +244,82 @@ def _extract_emojis(text: str) -> List[str]:
     return ordered_unique
 
 
+def _extract_addresses(text: str) -> List[str]:
+    trigger_pattern = address_config.get("trigger_pattern", {}).get("pattern", "")
+    if trigger_pattern and not re.search(trigger_pattern, text, flags=re.IGNORECASE):
+        return []
+
+    components = address_config.get("components", {})
+    spans: List[Tuple[int, int]] = []
+    for comp in components.values():
+        pattern = comp.get("pattern")
+        if not pattern:
+            continue
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            start, end = match.start(), match.end()
+            while end < len(text) and text[end] in " ,.;:":
+                end += 1
+            spans.append((start, end))
+
+    if not spans:
+        return []
+
+    spans.sort()
+    merged: List[Tuple[int, int]] = []
+    for start, end in spans:
+        if merged:
+            prev_start, prev_end = merged[-1]
+            gap = start - prev_end
+            if gap <= _ADDRESS_MERGE_THRESHOLD and not re.search(r"[.?!]", text[prev_end:start]):
+                merged[-1] = (prev_start, max(prev_end, end))
+                continue
+        merged.append((start, end))
+
+    results: List[str] = []
+    seen: set[str] = set()
+    for start, end in merged:
+        snippet = text[start:end].strip(" ,.;:")
+        if not snippet:
+            continue
+        key = snippet.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append(snippet)
+    return results
+
+
+def _extract_ids(text: str) -> List[str]:
+    pattern = NIK_config.get("pattern", "")
+    if not pattern:
+        return []
+    results: List[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(pattern, text):
+        snippet = match.group(0).strip()
+        if not snippet:
+            continue
+        if snippet in seen:
+            continue
+        seen.add(snippet)
+        results.append(snippet)
+    return results
+
+
 def _pii_flag_from_text(text: str) -> bool:
     email_result = replace_email(text, mode="replace")
     phone_result = replace_phone(text, mode="replace")
-    return "[EMAIL]" in email_result or "[PHONE_NUMBER]" in phone_result
+    address_result = replace_address(text, mode="replace")
+    id_result = replace_id(text, mode="replace")
+    return any(
+        token in result
+        for token, result in (
+            ("[EMAIL]", email_result),
+            ("[PHONE_NUMBER]", phone_result),
+            ("[ADDRESS]", address_result),
+            ("[NIK]", id_result),
+        )
+    )
 
 
 def _build_flag_record(text: str, *, non_alpha_threshold: float) -> Dict[str, Any]:
@@ -273,7 +348,9 @@ def _build_stats_record(text: str) -> Dict[str, Any]:
     html_tags = _extract_html_tags(text)
     emails = _extract_emails(stripped)
     phones = _extract_phones(stripped)
-    noise_types = [urls, html_tags, emails, phones["raw"], emojis]
+    addresses = _extract_addresses(stripped)
+    ids_found = _extract_ids(stripped)
+    noise_types = [urls, html_tags, emails, phones["raw"], emojis, addresses, ids_found]
     noise_count = sum(1 for items in noise_types if items)
     return {
         "length": len(stripped),
@@ -289,6 +366,8 @@ def _build_stats_record(text: str) -> Dict[str, Any]:
         "phones": phones["raw"],
         "phones_normalized": phones["normalized"],
         "emoji_list": emojis,
+        "addresses": addresses,
+        "ids": ids_found,
     }
 
 
@@ -303,6 +382,8 @@ def _build_noise_record(text: str) -> Dict[str, List[str]]:
     replace_phone(stripped, mode="replace")
     emojis = _extract_emojis(stripped)
     remove_emoji(stripped, mode="remove")
+    addresses = _extract_addresses(stripped)
+    ids_found = _extract_ids(stripped)
     return {
         "urls": urls,
         "html_tags": html_tags,
@@ -310,6 +391,8 @@ def _build_noise_record(text: str) -> Dict[str, List[str]]:
         "phones": phones["raw"],
         "phones_normalized": phones["normalized"],
         "emojis": emojis,
+        "addresses": addresses,
+        "ids": ids_found,
     }
 
 
