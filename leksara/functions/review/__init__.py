@@ -5,5 +5,7 @@ __all__ = [
     "replace_acronym",
     "normalize_slangs",
     "expand_contraction",
-    "word_normalization"
+    "word_normalization",
+    "mask_rating_tokens",
+    "unmask_rating_tokens",
 ]

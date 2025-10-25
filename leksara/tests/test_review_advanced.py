@@ -9,7 +9,10 @@ from leksara.functions.review.advanced import (
     replace_rating,
     shorten_elongation,
     word_normalization,
+    mask_rating_tokens,
+    unmask_rating_tokens,
 )
+from leksara.functions.cleaner.basic import remove_punctuation
 
 RATING_PLACEHOLDER = "__RATING_"
 
@@ -144,6 +147,17 @@ def test_replace_rating_collapses_whitespace_after_replacement():
     text = "Rating:  4  /5   sangat bagus"
     out = replace_rating(text)
     assert "  " not in out
+
+
+def test_mask_unmask_rating_tokens_survive_punctuation_removal():
+    text = "rating 4.5"
+    masked = mask_rating_tokens(replace_rating(text))
+    assert masked != replace_rating(text)
+    assert "4.5" not in masked
+    # remove_punctuation menghapus titik, sentinel harus menjaga format
+    stripped = remove_punctuation(masked)
+    restored = unmask_rating_tokens(stripped)
+    assert "4.5" in restored
 
 
 @pytest.fixture

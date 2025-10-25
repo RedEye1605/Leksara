@@ -31,6 +31,7 @@ except Exception:  # pragma: no cover
 
 # tambahkan import whitelist masker
 from ..utils.whitelist import mask_whitelist, unmask_whitelist
+from ..functions.review.advanced import mask_rating_tokens, unmask_rating_tokens, replace_rating
 from .presets import get_preset as _get_preset
 
 TextFn = Callable[[str], str]
@@ -47,6 +48,7 @@ def _normalize_steps(steps: Optional[Iterable[Step]]) -> List[TextFn]:
         if callable(s):
             fn = s
             setattr(fn, "__leksara_name__", getattr(fn, "__name__", repr(fn)))
+            setattr(fn, "__leksara_original__", fn)
             out.append(fn)
         elif isinstance(s, tuple) and len(s) == 2 and callable(s[0]) and isinstance(s[1], dict):
             fn, kwargs = s
@@ -54,10 +56,40 @@ def _normalize_steps(steps: Optional[Iterable[Step]]) -> List[TextFn]:
             def wrapped(x: str, _fn=fn, _kw=kwargs):
                 return _fn(x, **_kw)
             setattr(wrapped, "__leksara_name__", name)
+            setattr(wrapped, "__leksara_original__", fn)
             out.append(wrapped)
         else:
             raise TypeError("Step pipeline harus callable atau (callable, dict kwargs).")
     return out
+
+
+def _wrap_with_rating_mask(fn: TextFn) -> TextFn:
+    """Bungkus fungsi agar rating yang dihasilkan langsung dimasking."""
+    name = getattr(fn, "__leksara_name__", getattr(fn, "__name__", repr(fn)))
+    original = getattr(fn, "__leksara_original__", fn)
+
+    def wrapped(x: str, _fn=fn):
+        result = _fn(x)
+        return mask_rating_tokens(result)
+
+    setattr(wrapped, "__leksara_name__", name)
+    setattr(wrapped, "__leksara_original__", original)
+    return wrapped
+
+
+def _prepare_functions(steps: Optional[Iterable[Step]]) -> List[TextFn]:
+    functions = _normalize_steps(steps)
+    prepared: List[TextFn] = []
+    for fn in functions:
+        original = getattr(fn, "__leksara_original__", fn)
+        if original in (mask_rating_tokens, unmask_rating_tokens):
+            prepared.append(fn)
+            continue
+        if original is replace_rating:
+            prepared.append(_wrap_with_rating_mask(fn))
+            continue
+        prepared.append(fn)
+    return prepared
 
 
 def _compose(funcs: Iterable[TextFn]) -> TextFn:
@@ -112,12 +144,12 @@ def leksara(
 
     # Langkah-langkah pipeline (patterns dan functions)
     patterns = _normalize_steps(pipeline.get("patterns", []))
-    functions = _normalize_steps(pipeline.get("functions", []))
+    functions = _prepare_functions(pipeline.get("functions", []))
 
     # Susun urutan langkah. Proteksi whitelist hanya jika ada functions.
     steps_all = [*patterns]
     if functions:
-        steps_all += [mask_whitelist, *functions, unmask_whitelist]
+        steps_all += [mask_whitelist, *functions, unmask_whitelist, unmask_rating_tokens]
 
     # Timing agregat per step
     timings_map: Dict[str, float] = {}
@@ -194,9 +226,11 @@ class ReviewChain:
             seq.extend(list(patterns))
         # Sisipkan proteksi whitelist di antara patterns → functions
         if functions:
+            prepared = _prepare_functions(functions)
             seq.append(mask_whitelist)           # Mask token whitelist
-            seq.extend(list(functions))          # Jalankan functions
+            seq.extend(prepared)                 # Jalankan functions (dengan proteksi rating)
             seq.append(unmask_whitelist)         # Kembalikan token whitelist
+            seq.append(unmask_rating_tokens)     # Pulihkan titik desimal rating
 
         return cls(seq)
 

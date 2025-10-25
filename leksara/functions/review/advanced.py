@@ -9,6 +9,11 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 _factory = StemmerFactory()
 _STEMMER = _factory.create_stemmer()
 
+# Sentinel character untuk melindungi separator desimal rating dari fungsi pembersih.
+# Menggunakan Private Use Area agar tidak tersentuh operasi regex/punctuation standar.
+_RATING_DECIMAL_SENTINEL = "\uE150"
+_RATING_DECIMAL_PATTERN = re.compile(r"(?<!\d)(\d+\.\d+)(?!\d)")
+
 
 def _normalize_rating_config(raw_config):
     if isinstance(raw_config, dict):
@@ -239,6 +244,43 @@ def replace_rating(text: str) -> str:
     
     processed_text = re.sub(r'\s{2,}', ' ', processed_text).strip()
     return processed_text
+
+
+def _should_mask_decimal(token: str) -> bool:
+    """Batasi masking hanya pada rating hasil normalisasi (range 0-5)."""
+    try:
+        value = float(token)
+    except (TypeError, ValueError):
+        return False
+    return 0.0 <= value <= 5.0 and "." in token
+
+
+def mask_rating_tokens(text: str) -> str:
+    """Ganti titik desimal rating dengan sentinel agar tidak hilang saat remove_punctuation."""
+    if not isinstance(text, str):
+        return text
+
+    if '.' not in text:
+        return text
+
+    def _mask(match: re.Match) -> str:
+        token = match.group(1)
+        if not _should_mask_decimal(token):
+            return token
+        return token.replace('.', _RATING_DECIMAL_SENTINEL)
+
+    return _RATING_DECIMAL_PATTERN.sub(_mask, text)
+
+
+def unmask_rating_tokens(text: str) -> str:
+    """Pulihkan sentinel rating menjadi titik desimal asli setelah proses pembersihan."""
+    if not isinstance(text, str):
+        return text
+
+    if _RATING_DECIMAL_SENTINEL not in text:
+        return text
+
+    return text.replace(_RATING_DECIMAL_SENTINEL, '.')
 
 def shorten_elongation(text: str, max_repeat: int = 2) -> str:
     """Kurangi pengulangan karakter hingga maksimal `max_repeat` kemunculan.
