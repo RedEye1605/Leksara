@@ -1,3 +1,4 @@
+
 <h1 align="center">LEKSARA</h1>
 
 <p align="center">
@@ -149,3 +150,7 @@ Architectural notes, data contracts, and extension points for each layer are cap
 - Commercial or large-scale users should wrap `ReviewChain` with automated smoke tests to detect upstream dictionary or regex changes early.
 
 Leksara is licensed under the terms specified in `LICENSE`.
+
+---
+
+For more details, you can also visit our [official documentation website](https://bccfilkom.ub.ac.id/leksara).
